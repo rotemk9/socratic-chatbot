@@ -1,0 +1,10 @@
+@import "tailwindcss";
+
+/* THIS IS THE MAGIC LINE: It forces Tailwind v4 to listen to your React button instead of your Mac's system settings! */
+@custom-variant dark (&:where(.dark, .dark *));
+
+body {
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+}
