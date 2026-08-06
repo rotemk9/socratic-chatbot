@@ -15,11 +15,29 @@ function assignRandomGroup() {
   return Math.random() < 0.5 ? "Experimental Group" : "Control Group";
 }
 
+// How long a session may stay Pending before the system assigns a group automatically.
+// Defaults to 2 minutes; can be overridden with the AUTO_ASSIGN_AFTER_MS env variable.
+const AUTO_ASSIGN_AFTER_MS = Number(process.env.AUTO_ASSIGN_AFTER_MS) || 120000;
+
+// Apply a research group to a session and keep the user and progress records in sync
+async function applyGroup(session, group) {
+  // Update the group on the session itself
+  session.group = group;
+  await session.save();
+
+  // Resolve the user id whether studentId is populated or a raw ObjectId
+  const userId = session.studentId?._id || session.studentId;
+
+  // Keep the user record and the progress record on the same group
+  await User.findByIdAndUpdate(userId, { group });
+  await StudentProgress.findOneAndUpdate({ sessionId: session._id }, { group });
+}
+
 // Start a new session or return an existing active session
 async function startSession(req, res) {
   try {
     // Extract the user's information from the request body
-    const { name, studentId, email , role } = req.body;
+    const { name, studentId, email , role, devMode } = req.body;
 
     // Prevent researchers from using the student session endpoint
 if (role === "researcher") {
@@ -46,8 +64,9 @@ if (role === "researcher") {
   email,
   role: role || "student",
 
-  // Assign researchers to the experimental group or randomly assign students
-  group: role === "researcher" ? "Experimental Group" : assignRandomGroup(),
+  // Dev/testing shortcut goes straight to the experimental group; otherwise wait
+  // for the researcher to assign the group manually (Pending state).
+  group: devMode ? "Experimental Group" : "Pending",
 });
     }
 
@@ -112,12 +131,84 @@ async function getSession(req, res) {
       });
     }
 
+    // Automatic fallback: if the researcher did not assign a group within the
+    // allowed window, assign one randomly so the student is not stuck waiting.
+    if (session.group === "Pending") {
+      const ageMs = Date.now() - new Date(session.createdAt).getTime();
+      if (ageMs >= AUTO_ASSIGN_AFTER_MS) {
+        await applyGroup(session, assignRandomGroup());
+      }
+    }
+
     // Return the formatted user and session information
     res.json(formatSessionResponse(session.studentId, session));
   } catch (error) {
     // Return a server error if the session cannot be retrieved
     res.status(500).json({
       message: "Failed to get session",
+      error: error.message,
+    });
+  }
+}
+
+// Return every session that is still waiting for a manual group assignment
+async function getPendingSessions(req, res) {
+  try {
+    // Find active sessions that have not yet been assigned a group
+    const sessions = await Session.find({ group: "Pending", status: "active" })
+      .populate("studentId")
+      .sort({ createdAt: 1 });
+
+    // Format a lightweight list for the researcher dashboard
+    const pending = sessions.map((s) => ({
+      sessionId: s._id,
+      studentName: s.studentId?.name,
+      studentId: s.studentId?.studentId,
+      email: s.studentId?.email,
+      createdAt: s.createdAt,
+    }));
+
+    // Return the list of waiting students
+    res.json(pending);
+  } catch (error) {
+    // Return a server error if the pending list cannot be retrieved
+    res.status(500).json({
+      message: "Failed to get pending sessions",
+      error: error.message,
+    });
+  }
+}
+
+// Let the researcher manually assign a session to a research group
+async function assignGroup(req, res) {
+  try {
+    // Extract the session ID and the chosen group from the request body
+    const { sessionId, group } = req.body;
+
+    // Only allow the two valid research groups
+    if (!["Experimental Group", "Control Group"].includes(group)) {
+      return res.status(400).json({
+        message: "Group must be 'Experimental Group' or 'Control Group'",
+      });
+    }
+
+    // Find the session together with its connected student
+    const session = await Session.findById(sessionId).populate("studentId");
+
+    // Return an error if the session does not exist
+    if (!session) {
+      return res.status(404).json({ message: "Session not found" });
+    }
+
+    // Apply the chosen group across the session, user, and progress records
+    await applyGroup(session, group);
+
+    // Return the updated session information
+    res.json(formatSessionResponse(session.studentId, session));
+  } catch (error) {
+    // Return a server error if the assignment fails
+    res.status(500).json({
+      message: "Failed to assign group",
       error: error.message,
     });
   }
@@ -212,4 +303,6 @@ module.exports = {
   startSession,
   getSession,
   increaseHint,
+  getPendingSessions,
+  assignGroup,
 };

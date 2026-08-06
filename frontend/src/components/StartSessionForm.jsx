@@ -1,6 +1,9 @@
 // Import React state management
 import { useState } from "react";
 
+// Import routing helper to read the hidden dev shortcut
+import { useSearchParams } from "react-router-dom";
+
 // Import the session context used to start a new student session
 import { useSession } from "../Context/SessionContext";
 
@@ -8,6 +11,10 @@ import { useSession } from "../Context/SessionContext";
 function StartSessionForm({ onBack }) {
   // Get the function responsible for starting the student session
   const { startStudentSession } = useSession();
+
+  // Detect the hidden "?dev=1" shortcut used by the researcher for testing
+  const [searchParams] = useSearchParams();
+  const isDevMode = searchParams.get("dev") === "1";
 
   // Store the student's entered information
   const [formData, setFormData] = useState({
@@ -36,8 +43,10 @@ function StartSessionForm({ onBack }) {
     setError("");
 
     try {
-      // Send the student information through the session context
-      await startStudentSession(formData);
+      // Send the student information through the session context.
+      // In dev mode, the devMode flag tells the backend to skip the waiting
+      // room and put this session straight into the experimental group.
+      await startStudentSession({ ...formData, devMode: isDevMode });
     } catch (err) {
       // Display an error if the session cannot be started
       setError("Failed to start session");

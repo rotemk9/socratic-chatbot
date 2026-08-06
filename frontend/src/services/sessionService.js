@@ -15,3 +15,13 @@ export function getSessionById(sessionId) {
 export function increaseHintCounter(sessionId) {
   return apiPost("/session/increase-hint", { sessionId });
 }
+
+// Retrieve the list of students who are waiting for a manual group assignment
+export function getPendingSessions() {
+  return apiGet("/session/pending");
+}
+
+// Let the researcher assign a waiting student to a research group
+export function assignSessionGroup(sessionId, group) {
+  return apiPost("/session/assign-group", { sessionId, group });
+}

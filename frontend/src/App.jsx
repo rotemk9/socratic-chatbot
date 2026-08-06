@@ -1,8 +1,8 @@
 // Import React state management
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 // Import routing components and navigation hooks
-import { Routes, Route, useNavigate, Navigate } from "react-router-dom";
+import { Routes, Route, useNavigate, Navigate, useSearchParams } from "react-router-dom";
 
 // Import the main application components
 import Header from "./components/Header";
@@ -14,6 +14,8 @@ import ResearchAnalytics from "./components/Dashboard/ResearchAnalytics";
 import ProgressBar from "./components/ProgressBar";
 import StartSessionForm from "./components/StartSessionForm";
 import ResearcherLogin from "./components/ResearcherLogin";
+import WaitingScreen from "./components/WaitingScreen";
+import PendingStudents from "./components/Dashboard/PendingStudents";
 import PreTaskSurvey from "./components/Questionnaire/PreTaskSurvey";
 import PostTaskSurvey from "./components/Questionnaire/PostTaskSurvey";
 
@@ -32,7 +34,17 @@ function App() {
   const [researcher, setResearcher] = useState(null);
 
   // Programmatically navigate between application routes
-  const navigate = useNavigate(); 
+  const navigate = useNavigate();
+
+  // Read the hidden "?dev=1" shortcut the researcher uses for quick testing
+  const [searchParams] = useSearchParams();
+  const isDevMode = searchParams.get("dev") === "1";
+
+  // In dev mode, automatically mark the pre-task questionnaire as done so the
+  // researcher jumps straight to the chatbot.
+  useEffect(() => {
+    if (isDevMode) setPreTaskDone(true);
+  }, [isDevMode]);
 
   // Clear student and researcher data and return to the landing page
   function handleLogout() {
@@ -101,13 +113,16 @@ function App() {
             element={
               researcher ? (
                 <div className="space-y-6">
+                  {/* Live panel: assign waiting students to a research group */}
+                  <PendingStudents />
+
                   {/* Display general research statistics */}
                   <ResearchAnalytics />
 
                   {/* Display individual student progress information */}
                   <DashboardPreview />
                 </div>
-              ) : <Navigate to="/admin" /> 
+              ) : <Navigate to="/admin" />
             } 
           />
 
@@ -118,6 +133,10 @@ function App() {
               !sessionInfo ? (
                 // Redirect users without an active session to student login
                 <Navigate to="/login" />
+              ) : sessionInfo.group === "Pending" ? (
+                // Hold the student on a waiting screen until the researcher
+                // assigns them a group (or the automatic fallback kicks in)
+                <WaitingScreen />
               ) : !preTaskDone ? (
                 // Require the pre-task questionnaire before opening the chat
                 <PreTaskSurvey onDone={() => setPreTaskDone(true)} />

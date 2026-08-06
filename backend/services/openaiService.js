@@ -100,7 +100,7 @@ ${historyText}
 
     // Send the student's message and system instructions to OpenAI
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini", // You can change this to gpt-4o-mini to save costs!
+      model: "gpt-4o-mini",
       messages: [
         // Define the AI's behavior and provide the learning context
         { role: "system", content: systemPrompt },

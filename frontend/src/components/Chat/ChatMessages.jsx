@@ -48,15 +48,10 @@ function ChatMessages({ messages, isTyping }) {
           </p>
         </div>
 
-        {/* Display the systems-thinking principles title */}
-        <h4 className="mb-2 sm:mb-3 text-base sm:text-lg font-bold text-indigo-700 dark:text-indigo-400">עקרונות חשיבה מערכתית:</h4>
-
-        {/* Display the main systems-thinking principles */}
-        <ul className="list-inside list-disc space-y-1.5 sm:space-y-2 text-sm sm:text-[15px] text-slate-700 dark:text-slate-300">
-          <li>הבנת המערכת כשלם וראיית התמונה הגדולה</li>
-          <li>הגדרת גבולות המערכת (גורמים לא הנדסיים)</li>
-          <li>הבנת ההשלכות של שינויים מוצעים</li>
-        </ul>
+        {/* Display the detailed systems-thinking mission */}
+        <p className="text-sm sm:text-[15px] font-semibold leading-relaxed text-indigo-800 dark:text-indigo-300">
+          המשימה: נתח את המתרחש מתוך ראייה מערכתית כוללת, תוך התייחסות לגבולות המערכת ולגורמים שאינם הנדסיים, ובחן את ההשלכות האפשריות של שינויים במערכת.
+        </p>
       </div>
 
       {/* 2. INITIAL AI GREETING */}
