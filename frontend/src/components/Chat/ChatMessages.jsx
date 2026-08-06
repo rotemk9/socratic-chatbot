@@ -44,14 +44,10 @@ function ChatMessages({ messages, isTyping }) {
         {/* Highlight the main task that the student must solve */}
         <div className="mb-5 sm:mb-6 rounded-xl border border-indigo-200 bg-white/60 p-4 shadow-sm dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:shadow-inner">
           <p className="text-base sm:text-lg font-bold leading-snug text-indigo-800 dark:text-indigo-300">
-            המשימה: תאר כיצד אתה מבין מה מתרחש בשדה התעופה בבוקר הזה, ומה לדעתך עשוי לקרות בהמשך.
+           המשימה: נתח את המתרחש מתוך ראייה מערכתית כוללת, תוך התייחסות לגבולות המערכת ולגורמים שאינם הנדסיים, ובחן את ההשלכות האפשריות של שינויים במערכת.
           </p>
         </div>
 
-        {/* Display the detailed systems-thinking mission */}
-        <p className="text-sm sm:text-[15px] font-semibold leading-relaxed text-indigo-800 dark:text-indigo-300">
-          המשימה: נתח את המתרחש מתוך ראייה מערכתית כוללת, תוך התייחסות לגבולות המערכת ולגורמים שאינם הנדסיים, ובחן את ההשלכות האפשריות של שינויים במערכת.
-        </p>
       </div>
 
       {/* 2. INITIAL AI GREETING */}
