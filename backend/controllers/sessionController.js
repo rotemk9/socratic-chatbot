@@ -185,10 +185,11 @@ async function assignGroup(req, res) {
     // Extract the session ID and the chosen group from the request body
     const { sessionId, group } = req.body;
 
-    // Only allow the two valid research groups
-    if (!["Experimental Group", "Control Group"].includes(group)) {
+    // Allow the two research groups, plus "Pending" so the admin can move a
+    // student back to the waiting state (un-approve) if needed.
+    if (!["Experimental Group", "Control Group", "Pending"].includes(group)) {
       return res.status(400).json({
-        message: "Group must be 'Experimental Group' or 'Control Group'",
+        message: "Group must be 'Experimental Group', 'Control Group', or 'Pending'",
       });
     }
 
@@ -298,11 +299,45 @@ function formatSessionResponse(user, session) {
   };
 }
 
+// Return every registered student (one row per session) for the admin panel
+async function getAllStudents(req, res) {
+  try {
+    // Load all sessions together with their student, newest first
+    const sessions = await Session.find()
+      .populate("studentId")
+      .sort({ createdAt: -1 });
+
+    // Build a management-friendly list for the admin dashboard
+    const students = sessions
+      // Ignore sessions whose student record is missing
+      .filter((s) => s.studentId)
+      .map((s) => ({
+        sessionId: s._id,
+        studentName: s.studentId.name,
+        studentId: s.studentId.studentId,
+        email: s.studentId.email,
+        group: s.group,
+        status: s.status,
+        createdAt: s.createdAt,
+      }));
+
+    // Return the full list of students
+    res.json(students);
+  } catch (error) {
+    // Return a server error if the student list cannot be retrieved
+    res.status(500).json({
+      message: "Failed to get students",
+      error: error.message,
+    });
+  }
+}
+
 // Export the controller functions so they can be used in the session routes
 module.exports = {
   startSession,
   getSession,
   increaseHint,
   getPendingSessions,
+  getAllStudents,
   assignGroup,
 };

@@ -1,5 +1,5 @@
 // Import React state management
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 // Import routing components and navigation hooks
 import { Routes, Route, useNavigate, Navigate, useSearchParams } from "react-router-dom";
@@ -15,7 +15,8 @@ import ProgressBar from "./components/ProgressBar";
 import StartSessionForm from "./components/StartSessionForm";
 import ResearcherLogin from "./components/ResearcherLogin";
 import WaitingScreen from "./components/WaitingScreen";
-import PendingStudents from "./components/Dashboard/PendingStudents";
+import AdminStudents from "./components/Dashboard/AdminStudents";
+import ExportData from "./components/Dashboard/ExportData";
 import PreTaskSurvey from "./components/Questionnaire/PreTaskSurvey";
 import PostTaskSurvey from "./components/Questionnaire/PostTaskSurvey";
 
@@ -36,15 +37,10 @@ function App() {
   // Programmatically navigate between application routes
   const navigate = useNavigate();
 
-  // Read the hidden "?dev=1" shortcut the researcher uses for quick testing
+  // Read the hidden "?dev=1" shortcut the researcher uses for quick testing.
+  // In dev mode the pre-task questionnaire shows a visible "Skip" button.
   const [searchParams] = useSearchParams();
   const isDevMode = searchParams.get("dev") === "1";
-
-  // In dev mode, automatically mark the pre-task questionnaire as done so the
-  // researcher jumps straight to the chatbot.
-  useEffect(() => {
-    if (isDevMode) setPreTaskDone(true);
-  }, [isDevMode]);
 
   // Clear student and researcher data and return to the landing page
   function handleLogout() {
@@ -113,8 +109,11 @@ function App() {
             element={
               researcher ? (
                 <div className="space-y-6">
-                  {/* Live panel: assign waiting students to a research group */}
-                  <PendingStudents />
+                  {/* Participant management: view, approve, and assign groups */}
+                  <AdminStudents />
+
+                  {/* Export student data (CSV for all + per-student JSON) */}
+                  <ExportData />
 
                   {/* Display general research statistics */}
                   <ResearchAnalytics />
@@ -139,7 +138,8 @@ function App() {
                 <WaitingScreen />
               ) : !preTaskDone ? (
                 // Require the pre-task questionnaire before opening the chat
-                <PreTaskSurvey onDone={() => setPreTaskDone(true)} />
+                // (a Skip button appears here only in dev mode)
+                <PreTaskSurvey onDone={() => setPreTaskDone(true)} allowSkip={isDevMode} />
               ) : sessionInfo.status === "completed" ? (
                 // Display the post-task questionnaire after session completion
                 <PostTaskSurvey onDone={handleLogout} />

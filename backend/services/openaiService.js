@@ -150,6 +150,7 @@ Bloom level: ${bloomLevel}
 Unlocked gates: ${unlockedGates?.join(", ") || "none"}
 
 Rules:
+- Write the hint in Hebrew.
 - Ask only ONE open-ended question.
 - Do not give the answer.
 - Do not solve the task.
@@ -159,7 +160,7 @@ Return only the question.
 
     // Request a hint from OpenAI
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
 
       // Only a system message is required because the session data is inside the prompt
       messages: [{ role: "system", content: systemPrompt }],
@@ -202,50 +203,50 @@ function getBloomFallbackHint(currentLayer, hintsUsed, unlockedGates = []) {
   // Define a fallback question for every Bloom level and learning layer
   const hints = {
     Remember: {
-      "Broad Context": "What basic facts have you already identified about the airport this morning?",
-      Structure: "Which parts or subsystems can you name in the airport system?",
-      Dynamics: "What events or situations happen in the airport over time?",
-      Evaluation: "What information do you already have for judging if a solution works?",
+      "Broad Context": "אילו עובדות בסיסיות כבר זיהית לגבי מה שקורה בשדה התעופה הבוקר?",
+      Structure: "אילו חלקים או תת-מערכות אתה יכול לנקוב בהם במערכת של שדה התעופה?",
+      Dynamics: "אילו אירועים או מצבים מתרחשים בשדה התעופה לאורך הזמן?",
+      Evaluation: "אילו נתונים כבר יש לך כדי להעריך אם פתרון עובד?",
     },
 
     Understand: {
-      "Broad Context": "How would you explain the core situation at the airport in your own words?",
-      Structure: "How are the main subsystems (like check-in and baggage handling) connected?",
-      Dynamics: "How does the airport behave differently in normal times vs rush hour?",
-      Evaluation: "How would you explain the meaning of each success metric?",
+      "Broad Context": "כיצד היית מסביר במילים שלך את הבעיה המרכזית בשדה התעופה?",
+      Structure: "כיצד קשורות זו לזו תת-המערכות המרכזיות (למשל צ'ק-אין וטיפול במזוודות)?",
+      Dynamics: "כיצד המערכת מתנהגת אחרת בזמן רגיל לעומת שעת עומס?",
+      Evaluation: "כיצד היית מסביר את המשמעות של כל מדד הצלחה?",
     },
 
     Apply: {
-      "Broad Context": "Can you apply your goal to a specific passenger's experience?",
-      Structure: "Can you apply cause and effect to connect the airport's subsystems?",
-      Dynamics: "Can you apply the idea of feedback to the security queue?",
-      Evaluation: "Can you apply your metrics to compare two possible solutions?",
+      "Broad Context": "כיצד היית מיישם את המטרה שהגדרת על חוויית נוסע מסוים?",
+      Structure: "כיצד היית מחבר בין תת-מערכות שדה התעופה באמצעות סיבה ותוצאה?",
+      Dynamics: "כיצד רעיון המשוב בא לידי ביטוי בתור הבידוק הביטחוני?",
+      Evaluation: "כיצד היית משתמש במדדים שלך כדי להשוות בין שני פתרונות אפשריים?",
     },
 
     Analyze: {
-      "Broad Context": "Which stakeholder has the strongest influence on the passenger flow, and why?",
-      Structure: "Which relationship between subsystems causes the biggest bottleneck?",
-      Dynamics: "Where does the most important feedback loop appear during rush hour?",
-      Evaluation: "What tradeoff appears when comparing the alternatives?",
+      "Broad Context": "לאיזה מחזיק עניין יש ההשפעה החזקה ביותר על זרימת הנוסעים, ומדוע?",
+      Structure: "איזה קשר בין תת-מערכות יוצר את צוואר הבקבוק הגדול ביותר?",
+      Dynamics: "היכן מופיעה לולאת המשוב החשובה ביותר בשעת עומס?",
+      Evaluation: "איזו פשרה עולה כשמשווים בין החלופות?",
     },
 
     Evaluate: {
-      "Broad Context": "Which assumption about the passengers is most risky?",
-      Structure: "Which subsystem is most critical for keeping passengers moving?",
-      Dynamics: "Which scenario creates the greatest risk for on-time departures?",
-      Evaluation: "Which alternative is better for keeping both speed and security?",
+      "Broad Context": "איזו הנחה לגבי הנוסעים היא המסוכנת ביותר?",
+      Structure: "איזו תת-מערכת קריטית ביותר לשמירה על תנועת הנוסעים?",
+      Dynamics: "איזה תרחיש יוצר את הסיכון הגדול ביותר להמראות בזמן?",
+      Evaluation: "איזו חלופה עדיפה לשמירה גם על מהירות וגם על ביטחון?",
     },
 
     Create: {
-      "Broad Context": "How could you refine the system boundary to include air traffic control?",
-      Structure: "Can you create a clearer X → Y → Z influence chain for the passenger journey?",
-      Dynamics: "Can you create a feedback loop that shows how a delay in one subsystem spreads to another?",
-      Evaluation: "Can you propose a mitigation plan based on the risk of passengers missing their flights?",
+      "Broad Context": "כיצד היית מחדד את גבול המערכת כך שיכלול גם את בקרת התנועה האווירית?",
+      Structure: "כיצד היית יוצר שרשרת השפעה ברורה X ← Y ← Z עבור מסע הנוסע?",
+      Dynamics: "כיצד היית מתאר לולאת משוב שמראה כיצד עיכוב בתת-מערכת אחת מתפשט לאחרת?",
+      Evaluation: "כיצד היית מציע דרך להפחית את הסיכון שנוסעים יאחרו לטיסתם?",
     },
   };
 
   // Return the matching hint or a general fallback question
-  return hints[bloomLevel]?.[currentLayer] || "What is the next question that would help you think more deeply about the system?";
+  return hints[bloomLevel]?.[currentLayer] || "מהי השאלה הבאה שתעזור לך לחשוב לעומק על המערכת?";
 }
 
 // NOTE: Renamed this function for clarity since we are using OpenAI now

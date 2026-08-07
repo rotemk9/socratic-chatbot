@@ -21,6 +21,11 @@ export function getPendingSessions() {
   return apiGet("/session/pending");
 }
 
+// Retrieve every registered student for the admin management panel
+export function getAllStudents() {
+  return apiGet("/session/students");
+}
+
 // Let the researcher assign a waiting student to a research group
 export function assignSessionGroup(sessionId, group) {
   return apiPost("/session/assign-group", { sessionId, group });

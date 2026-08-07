@@ -7,6 +7,7 @@ const {
   getSession,
   increaseHint,
   getPendingSessions,
+  getAllStudents,
   assignGroup,
 } = require("../controllers/sessionController");
 
@@ -23,6 +24,10 @@ router.post("/increase-hint", increaseHint);
 // This must be declared before the "/:sessionId" route so "pending" is not
 // mistakenly treated as a session ID.
 router.get("/pending", getPendingSessions);
+
+// Let the admin list every registered student for the management panel.
+// Declared before "/:sessionId" for the same reason as above.
+router.get("/students", getAllStudents);
 
 // Let the researcher manually assign a session to a research group
 router.post("/assign-group", assignGroup);
