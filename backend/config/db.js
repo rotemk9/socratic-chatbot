@@ -9,6 +9,17 @@ async function connectDB() {
 
     // Display a success message when the database connection is established
     console.log("MongoDB connected successfully");
+
+    // Remove the legacy unique index on the users' email field, if it exists.
+    // Email is now optional and non-unique, so participants can enter again with
+    // the same email (or none) without being blocked. Safe to run every startup.
+    try {
+      const User = require("../models/User");
+      await User.collection.dropIndex("email_1");
+      console.log("Removed legacy unique email index");
+    } catch (indexError) {
+      // The index may already be gone — that is fine, so we ignore this error.
+    }
   } catch (error) {
     // Display an error message if the database connection fails
     console.error("MongoDB connection failed:", error.message);

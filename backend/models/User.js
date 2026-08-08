@@ -25,16 +25,15 @@ const userSchema = new mongoose.Schema(
       default: "Student 01",
     },
 
-    // Store the participant's email address
+    // Store the participant's email address.
+    // Optional and NOT unique — nothing is ever sent to it, and the same
+    // person may enter again with the same (or no) email without being blocked.
     email: {
       // The email must be a string
       type: String,
 
-      // Require every user to have an email address
-      required: true,
-
-      // Prevent multiple users from having the same email address
-      unique: true,
+      // Use an empty string when no email is provided
+      default: "",
     },
 
     // Store the user's role in the system

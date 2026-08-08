@@ -2,7 +2,7 @@
 import { useState } from "react";
 
 // Import routing components and navigation hooks
-import { Routes, Route, useNavigate, Navigate, useSearchParams } from "react-router-dom";
+import { Routes, Route, useNavigate, Navigate } from "react-router-dom";
 
 // Import the main application components
 import Header from "./components/Header";
@@ -37,10 +37,12 @@ function App() {
   // Programmatically navigate between application routes
   const navigate = useNavigate();
 
-  // Read the hidden "?dev=1" shortcut the researcher uses for quick testing.
-  // In dev mode the pre-task questionnaire shows a visible "Skip" button.
-  const [searchParams] = useSearchParams();
-  const isDevMode = searchParams.get("dev") === "1";
+  // Detect the hidden "?dev=1" shortcut ONCE when the page loads and remember it
+  // for the whole visit. This way the shortcut survives navigation between the
+  // login screen and the session screen (the query string is dropped on navigate).
+  const [isDevMode] = useState(
+    () => new URLSearchParams(window.location.search).get("dev") === "1"
+  );
 
   // Clear student and researcher data and return to the landing page
   function handleLogout() {
@@ -81,7 +83,7 @@ function App() {
           <Route 
             path="/login" 
             element={
-              sessionInfo ? <Navigate to="/session" /> : <StartSessionForm onBack={() => navigate("/")} />
+              sessionInfo ? <Navigate to="/session" /> : <StartSessionForm onBack={() => navigate("/")} devMode={isDevMode} />
             } 
           />
 

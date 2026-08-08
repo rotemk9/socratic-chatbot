@@ -1,20 +1,14 @@
 // Import React state management
 import { useState } from "react";
 
-// Import routing helper to read the hidden dev shortcut
-import { useSearchParams } from "react-router-dom";
-
 // Import the session context used to start a new student session
 import { useSession } from "../Context/SessionContext";
 
-// Displays the form used to create a new student session
-function StartSessionForm({ onBack }) {
+// Displays the form used to create a new student session.
+// "devMode" is passed from App (detected from the "?dev=1" shortcut at load).
+function StartSessionForm({ onBack, devMode }) {
   // Get the function responsible for starting the student session
   const { startStudentSession } = useSession();
-
-  // Detect the hidden "?dev=1" shortcut used by the researcher for testing
-  const [searchParams] = useSearchParams();
-  const isDevMode = searchParams.get("dev") === "1";
 
   // Store the student's entered information
   const [formData, setFormData] = useState({
@@ -46,7 +40,7 @@ function StartSessionForm({ onBack }) {
       // Send the student information through the session context.
       // In dev mode, the devMode flag tells the backend to skip the waiting
       // room and put this session straight into the experimental group.
-      await startStudentSession({ ...formData, devMode: isDevMode });
+      await startStudentSession({ ...formData, devMode });
     } catch (err) {
       // Display an error if the session cannot be started
       setError("Failed to start session");
@@ -101,7 +95,7 @@ function StartSessionForm({ onBack }) {
               name="email"
               value={formData.email}
               onChange={handleChange}
-              placeholder="Email"
+              placeholder="אימייל (לא חובה)"
               className="w-full rounded-lg border border-slate-200 bg-slate-50 p-3.5 text-slate-900 placeholder-slate-400 transition-all focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-purple-500 dark:border-transparent dark:bg-[#2a2f42]/80 dark:text-white dark:placeholder-gray-400 dark:focus:bg-[#2a2f42]"
             />
           </div>
