@@ -376,6 +376,41 @@ async function deleteStudent(req, res) {
   }
 }
 
+// Permanently delete ALL participants and their data (e.g., to reset before a study)
+async function deleteAllStudents(req, res) {
+  try {
+    // Load the remaining related models
+    const Message = require("../models/Message");
+    const GateEvent = require("../models/GateEvent");
+    const PreTask = require("../models/PreTaskQuestionnaire");
+    const PostTask = require("../models/PostTaskQuestionnaire");
+    const ControlGroupLog = require("../models/ControlGroupLog");
+
+    // Wipe every participant-related collection. The researcher/admin login is
+    // based on environment variables, so it is unaffected by this reset.
+    await Promise.all([
+      Session.deleteMany({}),
+      Chat.deleteMany({}),
+      Message.deleteMany({}),
+      GateEvent.deleteMany({}),
+      StudentProgress.deleteMany({}),
+      PreTask.deleteMany({}),
+      PostTask.deleteMany({}),
+      ControlGroupLog.deleteMany({}),
+      User.deleteMany({}),
+    ]);
+
+    // Confirm the reset
+    res.json({ message: "All students deleted" });
+  } catch (error) {
+    // Return a server error if the reset fails
+    res.status(500).json({
+      message: "Failed to delete all students",
+      error: error.message,
+    });
+  }
+}
+
 // Export the controller functions so they can be used in the session routes
 module.exports = {
   startSession,
@@ -385,4 +420,5 @@ module.exports = {
   getAllStudents,
   assignGroup,
   deleteStudent,
+  deleteAllStudents,
 };

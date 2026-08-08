@@ -35,3 +35,8 @@ export function assignSessionGroup(sessionId, group) {
 export function deleteStudent(sessionId) {
   return apiPost("/session/delete", { sessionId });
 }
+
+// Permanently delete ALL participants and their data (reset before a study)
+export function deleteAllStudents() {
+  return apiPost("/session/delete-all", {});
+}

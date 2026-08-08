@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback } from "react";
 
 // Import the API helpers for listing, assigning, and deleting students
-import { getAllStudents, assignSessionGroup, deleteStudent } from "../../services/sessionService";
+import { getAllStudents, assignSessionGroup, deleteStudent, deleteAllStudents } from "../../services/sessionService";
 
 // Human-readable Hebrew label for each group value
 const GROUP_LABEL = {
@@ -52,6 +52,25 @@ function AdminStudents() {
     const interval = setInterval(load, 4000);
     return () => clearInterval(interval);
   }, [load]);
+
+  // Permanently delete ALL participants after a strong confirmation
+  async function removeAll() {
+    if (students.length === 0) return;
+    if (!window.confirm(`אזהרה: פעולה זו תמחק לצמיתות את כל ${students.length} המשתתפים וכל הנתונים שלהם. לא ניתן לבטל. להמשיך?`)) {
+      return;
+    }
+    try {
+      setBusyId("__all__");
+      await deleteAllStudents();
+      setStudents([]);
+      await load();
+    } catch (err) {
+      console.error("failed to delete all:", err);
+      load();
+    } finally {
+      setBusyId(null);
+    }
+  }
 
   // Permanently delete a participant after confirmation, then refresh
   async function removeStudent(s) {
@@ -126,7 +145,7 @@ function AdminStudents() {
         <h3 className="text-lg font-bold text-slate-900 dark:text-white">
           ניהול משתתפים
         </h3>
-        <div className="flex gap-2 text-xs font-semibold">
+        <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
           <span className="rounded-full bg-yellow-100 px-3 py-0.5 text-yellow-800 dark:bg-yellow-500/20 dark:text-yellow-200">
             ממתינים: {counts.pending}
           </span>
@@ -136,6 +155,13 @@ function AdminStudents() {
           <span className="rounded-full bg-slate-200 px-3 py-0.5 text-slate-700 dark:bg-slate-500/20 dark:text-slate-300">
             ביקורת: {counts.control}
           </span>
+          <button
+            onClick={removeAll}
+            disabled={busyId === "__all__" || students.length === 0}
+            className="rounded-lg bg-red-600 px-3 py-1 font-bold text-white transition-all hover:bg-red-700 disabled:opacity-50"
+          >
+            מחק הכל
+          </button>
         </div>
       </div>
 

@@ -10,6 +10,7 @@ const {
   getAllStudents,
   assignGroup,
   deleteStudent,
+  deleteAllStudents,
 } = require("../controllers/sessionController");
 
 // Create a new Express router
@@ -35,6 +36,9 @@ router.post("/assign-group", assignGroup);
 
 // Permanently delete a participant and all of their data
 router.post("/delete", deleteStudent);
+
+// Permanently delete ALL participants (reset before a study)
+router.post("/delete-all", deleteAllStudents);
 
 // Retrieve a specific session using its session ID
 router.get("/:sessionId", getSession);
