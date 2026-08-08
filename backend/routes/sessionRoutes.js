@@ -9,6 +9,7 @@ const {
   getPendingSessions,
   getAllStudents,
   assignGroup,
+  deleteStudent,
 } = require("../controllers/sessionController");
 
 // Create a new Express router
@@ -31,6 +32,9 @@ router.get("/students", getAllStudents);
 
 // Let the researcher manually assign a session to a research group
 router.post("/assign-group", assignGroup);
+
+// Permanently delete a participant and all of their data
+router.post("/delete", deleteStudent);
 
 // Retrieve a specific session using its session ID
 router.get("/:sessionId", getSession);

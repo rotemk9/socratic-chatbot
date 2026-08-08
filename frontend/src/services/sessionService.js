@@ -30,3 +30,8 @@ export function getAllStudents() {
 export function assignSessionGroup(sessionId, group) {
   return apiPost("/session/assign-group", { sessionId, group });
 }
+
+// Permanently delete a participant (and all of their data) by session ID
+export function deleteStudent(sessionId) {
+  return apiPost("/session/delete", { sessionId });
+}

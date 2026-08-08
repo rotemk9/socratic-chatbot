@@ -1,8 +1,8 @@
 // Import React hooks for state and the polling effect
 import { useEffect, useState, useCallback } from "react";
 
-// Import the API helpers for listing students and assigning groups
-import { getAllStudents, assignSessionGroup } from "../../services/sessionService";
+// Import the API helpers for listing, assigning, and deleting students
+import { getAllStudents, assignSessionGroup, deleteStudent } from "../../services/sessionService";
 
 // Human-readable Hebrew label for each group value
 const GROUP_LABEL = {
@@ -52,6 +52,25 @@ function AdminStudents() {
     const interval = setInterval(load, 4000);
     return () => clearInterval(interval);
   }, [load]);
+
+  // Permanently delete a participant after confirmation, then refresh
+  async function removeStudent(s) {
+    const name = s.studentName || "המשתתף";
+    if (!window.confirm(`למחוק לצמיתות את ${name} (ת״ז ${s.studentId || "—"}) וכל הנתונים שלו? לא ניתן לבטל.`)) {
+      return;
+    }
+    try {
+      setBusyId(s.sessionId);
+      setStudents((prev) => prev.filter((x) => x.sessionId !== s.sessionId));
+      await deleteStudent(s.sessionId);
+      await load();
+    } catch (err) {
+      console.error("failed to delete student:", err);
+      load();
+    } finally {
+      setBusyId(null);
+    }
+  }
 
   // Assign a student to a group (or back to Pending), then refresh
   async function setGroup(sessionId, group) {
@@ -173,6 +192,13 @@ function AdminStudents() {
                   label="החזר להמתנה"
                   activeClass="bg-yellow-500 text-white"
                 />
+                <button
+                  onClick={() => removeStudent(s)}
+                  disabled={busyId === s.sessionId}
+                  className="rounded-lg bg-red-100 px-3 py-1.5 text-xs font-bold text-red-700 transition-all hover:bg-red-200 disabled:opacity-60 dark:bg-red-500/15 dark:text-red-300 dark:hover:bg-red-500/25"
+                >
+                  מחק
+                </button>
               </div>
             </li>
           ))}

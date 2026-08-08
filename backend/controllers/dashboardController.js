@@ -62,6 +62,9 @@ async function getDashboardData(req, res) {
             // Database ID of the student
             studentId: item.studentId._id,
 
+            // Session ID (used by the admin panel to delete a participant)
+            sessionId: item.sessionId,
+
             // Student's name
             studentName: item.studentId.name,
 

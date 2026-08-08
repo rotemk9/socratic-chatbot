@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { getDashboardData } from "../../services/dashboardService";
 import { getChatMessages } from "../../services/chatService";
+import { deleteStudent } from "../../services/sessionService";
 
 // Escape text so it is safe to place inside the printable HTML
 function esc(v) {
@@ -204,6 +205,25 @@ function ExportData() {
     }
   }
 
+  // Permanently delete a participant after confirmation, then refresh the list
+  async function removeStudent(s) {
+    const name = s.studentName || "המשתתף";
+    if (!window.confirm(`למחוק לצמיתות את ${name} (ת״ז ${s.studentNumber || "—"}) וכל הנתונים שלו? לא ניתן לבטל.`)) {
+      return;
+    }
+    try {
+      setBusy(true);
+      setStudents((prev) => prev.filter((x) => x.sessionId !== s.sessionId));
+      await deleteStudent(s.sessionId);
+      await load();
+    } catch (e) {
+      console.error("failed to delete student", e);
+      load();
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/5 dark:bg-[#1e2333]" dir="rtl">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
@@ -233,13 +253,22 @@ function ExportData() {
               <span className="text-sm text-slate-800 dark:text-slate-200">
                 {s.studentName || "ללא שם"} · ת״ז {s.studentNumber || "—"} · {s.group}
               </span>
-              <button
-                onClick={() => exportStudent(s)}
-                disabled={busy}
-                className="rounded-lg bg-slate-600 px-3 py-1.5 text-xs font-bold text-white transition-all hover:bg-slate-700 disabled:opacity-50"
-              >
-                הורד PDF
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => exportStudent(s)}
+                  disabled={busy}
+                  className="rounded-lg bg-slate-600 px-3 py-1.5 text-xs font-bold text-white transition-all hover:bg-slate-700 disabled:opacity-50"
+                >
+                  הורד PDF
+                </button>
+                <button
+                  onClick={() => removeStudent(s)}
+                  disabled={busy}
+                  className="rounded-lg bg-red-100 px-3 py-1.5 text-xs font-bold text-red-700 transition-all hover:bg-red-200 disabled:opacity-60 dark:bg-red-500/15 dark:text-red-300 dark:hover:bg-red-500/25"
+                >
+                  מחק
+                </button>
+              </div>
             </li>
           ))}
         </ul>

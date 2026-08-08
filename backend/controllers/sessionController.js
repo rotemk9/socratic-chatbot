@@ -332,6 +332,50 @@ async function getAllStudents(req, res) {
   }
 }
 
+// Permanently delete a participant and ALL of their related data
+async function deleteStudent(req, res) {
+  try {
+    // Identify the participant from the given session
+    const { sessionId } = req.body;
+    const session = await Session.findById(sessionId);
+    if (!session) {
+      return res.status(404).json({ message: "Session not found" });
+    }
+    const studentId = session.studentId;
+
+    // Load the remaining related models
+    const Message = require("../models/Message");
+    const GateEvent = require("../models/GateEvent");
+    const PreTask = require("../models/PreTaskQuestionnaire");
+    const PostTask = require("../models/PostTaskQuestionnaire");
+    const ControlGroupLog = require("../models/ControlGroupLog");
+
+    // Remove every record that belongs to this participant
+    await Promise.all([
+      Session.deleteMany({ studentId }),
+      Chat.deleteMany({ studentId }),
+      Message.deleteMany({ studentId }),
+      GateEvent.deleteMany({ studentId }),
+      StudentProgress.deleteMany({ studentId }),
+      PreTask.deleteMany({ studentId }),
+      PostTask.deleteMany({ studentId }),
+      ControlGroupLog.deleteMany({ studentId }),
+    ]);
+
+    // Finally remove the participant's user record
+    await User.findByIdAndDelete(studentId);
+
+    // Confirm the deletion
+    res.json({ message: "Student deleted", studentId });
+  } catch (error) {
+    // Return a server error if the deletion fails
+    res.status(500).json({
+      message: "Failed to delete student",
+      error: error.message,
+    });
+  }
+}
+
 // Export the controller functions so they can be used in the session routes
 module.exports = {
   startSession,
@@ -340,4 +384,5 @@ module.exports = {
   getPendingSessions,
   getAllStudents,
   assignGroup,
+  deleteStudent,
 };
