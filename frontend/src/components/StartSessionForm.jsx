@@ -5,8 +5,7 @@ import { useState } from "react";
 import { useSession } from "../Context/SessionContext";
 
 // Displays the form used to create a new student session.
-// "devMode" is passed from App (detected from the "?dev=1" shortcut at load).
-function StartSessionForm({ onBack, devMode }) {
+function StartSessionForm({ onBack }) {
   // Get the function responsible for starting the student session
   const { startStudentSession } = useSession();
 
@@ -37,10 +36,10 @@ function StartSessionForm({ onBack, devMode }) {
     setError("");
 
     try {
-      // Send the student information through the session context.
-      // In dev mode, the devMode flag tells the backend to skip the waiting
-      // room and put this session straight into the experimental group.
-      await startStudentSession({ ...formData, devMode });
+      // Send the student information through the session context. The backend
+      // recognizes the researcher test account (ID 1234567 / name Admin) by
+      // its credentials, so no extra flag is needed here.
+      await startStudentSession({ ...formData });
     } catch (err) {
       // Display an error if the session cannot be started
       setError("Failed to start session");

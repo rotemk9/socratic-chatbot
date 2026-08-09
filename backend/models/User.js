@@ -13,16 +13,24 @@ const mongoose = require("mongoose");
 // Define the structure of a user document
 const userSchema = new mongoose.Schema(
   {
-    // Store the participant's name
+    // Pseudonymous participant code — a one-way hash of the ID the participant
+    // typed. The real ID is NEVER stored; this code only lets a returning
+    // participant's data stay linked and gives each participant a reference.
+    studentId: {
+      type: String,
+      default: "",
+      index: true,
+    },
+
+    // Store the participant's name.
+    // Optional and NOT persisted for real participants — we do not save personal
+    // identifiers (name / ID / email). Kept only for backward compatibility.
     name: {
       // The name must be a string
       type: String,
 
-      // Require every user to have a name
-      required: true,
-
-      // Use this value when no name is provided
-      default: "Student 01",
+      // Use an empty string when no name is provided
+      default: "",
     },
 
     // Store the participant's email address.

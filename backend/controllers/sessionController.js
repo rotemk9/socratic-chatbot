@@ -37,7 +37,14 @@ async function applyGroup(session, group) {
 async function startSession(req, res) {
   try {
     // Extract the user's information from the request body
-    const { name, studentId, email , role, devMode } = req.body;
+    const { name, studentId, email , role } = req.body;
+
+    // Researcher test account: entering ID "1234567" with name "Admin" skips the
+    // waiting room (goes straight to the experimental group) and enables the
+    // "skip questionnaire" shortcut in the UI.
+    const isTestUser =
+      String(studentId || "").trim() === "1234567" &&
+      String(name || "").trim().toLowerCase() === "admin";
 
     // Prevent researchers from using the student session endpoint
 if (role === "researcher") {
@@ -53,21 +60,35 @@ if (role === "researcher") {
       });
     }
 
-    // Search for an existing user using the student ID
-    let user = await User.findOne({ studentId });
+    // PRIVACY: do not store the real ID, name, or email. Instead store a one-way
+    // hash of the entered ID as a pseudonymous participant code. The same entered
+    // ID always maps to the same code, so a participant can re-enter and their
+    // data stays linked — but the real ID can never be recovered from the store.
+    const crypto = require("crypto");
+    const participantCode = crypto
+      .createHash("sha256")
+      .update(String(studentId).trim())
+      .digest("hex")
+      .slice(0, 12);
+
+    // Search for an existing (pseudonymous) user by the participant code
+    let user = await User.findOne({ studentId: participantCode });
 
     // Create a new user if no matching user was found
     if (!user) {
-     user = await User.create({
-  name,
-  studentId,
-  email,
-  role: role || "student",
+      user = await User.create({
+        // No personal identifiers are saved:
+        name: "",
+        studentId: participantCode,
+        email: "",
+        // Tag the researcher test account by role so the UI can recognize it
+        // without relying on the (now hashed) ID or name.
+        role: isTestUser ? "admin" : "student",
 
-  // Dev/testing shortcut goes straight to the experimental group; otherwise wait
-  // for the researcher to assign the group manually (Pending state).
-  group: devMode ? "Experimental Group" : "Pending",
-});
+        // The researcher test account goes straight to the experimental group;
+        // everyone else waits for the researcher to assign the group (Pending).
+        group: isTestUser ? "Experimental Group" : "Pending",
+      });
     }
 
     // Search for an active session belonging to the user

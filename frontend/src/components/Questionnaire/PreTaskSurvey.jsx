@@ -402,15 +402,15 @@ function PreTaskSurvey({ onDone, allowSkip }) {
             סיים/י שאלון והתחל/י משימה
           </button>
 
-          {/* Testing-only shortcut: skip the questionnaire and go straight to the chat.
-              Shown only when the researcher opened the app with ?dev=1. */}
+          {/* Testing-only shortcut: skip the questionnaire and go straight to the
+              chat. Shown only for the researcher test account (ID 1234567 / Admin). */}
           {allowSkip && (
             <button
               type="button"
               onClick={onDone}
               className="mt-3 w-full rounded-xl border border-slate-300 bg-slate-100 py-3 text-sm font-semibold text-slate-600 transition-all hover:bg-slate-200 dark:border-white/10 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10"
             >
-              דלג/י על השאלון ועבור/י ישר לצ'אט (מצב בדיקה)
+              דילוג שאלון
             </button>
           )}
         </form>

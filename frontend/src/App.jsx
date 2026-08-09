@@ -37,12 +37,10 @@ function App() {
   // Programmatically navigate between application routes
   const navigate = useNavigate();
 
-  // Detect the hidden "?dev=1" shortcut ONCE when the page loads and remember it
-  // for the whole visit. This way the shortcut survives navigation between the
-  // login screen and the session screen (the query string is dropped on navigate).
-  const [isDevMode] = useState(
-    () => new URLSearchParams(window.location.search).get("dev") === "1"
-  );
+  // Researcher test account: logging in with ID "1234567" and name "Admin" is
+  // tagged by the backend with role "admin". We recognize it by that role (the
+  // real ID/name are no longer stored), which reveals the "skip" shortcut.
+  const isTestUser = sessionInfo?.role === "admin";
 
   // Clear student and researcher data and return to the landing page
   function handleLogout() {
@@ -83,7 +81,7 @@ function App() {
           <Route 
             path="/login" 
             element={
-              sessionInfo ? <Navigate to="/session" /> : <StartSessionForm onBack={() => navigate("/")} devMode={isDevMode} />
+              sessionInfo ? <Navigate to="/session" /> : <StartSessionForm onBack={() => navigate("/")} />
             } 
           />
 
@@ -141,7 +139,7 @@ function App() {
               ) : !preTaskDone ? (
                 // Require the pre-task questionnaire before opening the chat
                 // (a Skip button appears here only in dev mode)
-                <PreTaskSurvey onDone={() => setPreTaskDone(true)} allowSkip={isDevMode} />
+                <PreTaskSurvey onDone={() => setPreTaskDone(true)} allowSkip={isTestUser} />
               ) : sessionInfo.status === "completed" ? (
                 // Display the post-task questionnaire after session completion
                 <PostTaskSurvey onDone={handleLogout} />
