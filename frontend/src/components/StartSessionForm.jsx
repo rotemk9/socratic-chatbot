@@ -62,12 +62,15 @@ function StartSessionForm({ onBack }) {
           </p>
         </div>
 
-        {/* Submit the student details through handleSubmit */}
-        <form onSubmit={handleSubmit} className="space-y-5">
+        {/* Submit the student details through handleSubmit.
+            autoComplete="off" stops the browser from suggesting previously typed
+            values (that dropdown is per-device browser history, not app data). */}
+        <form onSubmit={handleSubmit} className="space-y-5" autoComplete="off">
           {/* Student ID input */}
           <div>
             <input
               name="studentId"
+              autoComplete="off"
               value={formData.studentId}
               onChange={handleChange}
               placeholder="Student ID"
@@ -80,6 +83,7 @@ function StartSessionForm({ onBack }) {
           <div>
             <input
               name="name"
+              autoComplete="off"
               value={formData.name}
               onChange={handleChange}
               placeholder="Full name"
@@ -92,6 +96,7 @@ function StartSessionForm({ onBack }) {
           <div>
             <input
               name="email"
+              autoComplete="off"
               value={formData.email}
               onChange={handleChange}
               placeholder="אימייל (לא חובה)"

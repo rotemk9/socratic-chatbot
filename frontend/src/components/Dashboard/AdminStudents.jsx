@@ -185,7 +185,7 @@ function AdminStudents() {
               <div className="flex flex-col gap-1">
                 <div className="flex items-center gap-2">
                   <span className="font-semibold text-slate-900 dark:text-white">
-                    {s.studentName || "ללא שם"}
+                    {s.studentName?.trim() ? s.studentName : `משתתף ${s.studentId || "—"}`}
                   </span>
                   <span
                     className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${GROUP_BADGE[s.group]}`}

@@ -60,29 +60,17 @@ if (role === "researcher") {
       });
     }
 
-    // PRIVACY: do not store the real ID, name, or email. Instead store a one-way
-    // hash of the entered ID as a pseudonymous participant code. The same entered
-    // ID always maps to the same code, so a participant can re-enter and their
-    // data stays linked — but the real ID can never be recovered from the store.
-    const crypto = require("crypto");
-    const participantCode = crypto
-      .createHash("sha256")
-      .update(String(studentId).trim())
-      .digest("hex")
-      .slice(0, 12);
-
-    // Search for an existing (pseudonymous) user by the participant code
-    let user = await User.findOne({ studentId: participantCode });
+    // Find an existing participant by their student ID, or create a new one
+    let user = await User.findOne({ studentId });
 
     // Create a new user if no matching user was found
     if (!user) {
       user = await User.create({
-        // No personal identifiers are saved:
-        name: "",
-        studentId: participantCode,
-        email: "",
+        name,
+        studentId,
+        email,
         // Tag the researcher test account by role so the UI can recognize it
-        // without relying on the (now hashed) ID or name.
+        // (it enables the "skip questionnaire" shortcut).
         role: isTestUser ? "admin" : "student",
 
         // The researcher test account goes straight to the experimental group;

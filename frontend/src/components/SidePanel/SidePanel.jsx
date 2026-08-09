@@ -3,7 +3,6 @@ import { useSession } from "../../Context/SessionContext";
 
 // Import the presentational components displayed inside the side panel
 import SessionInfo from "./SessionInfo";
-import ProgressConditions from "./ProgressConditions";
 import InfoCard from "./InfoCard";
 
 /*
@@ -54,14 +53,11 @@ function SidePanel() {
   return (
     <aside className="flex w-full flex-col gap-4 lg:gap-6">
       {/* Pass the logic down as props to the presentational component */}
-      <SessionInfo 
-        sessionInfo={sessionInfo} 
+      <SessionInfo
+        sessionInfo={sessionInfo}
         onTimeUp={handleTimeUp}
         onReminder={handleTimerReminder}
       />
-
-      {/* Display the gates that the student has unlocked */}
-      <ProgressConditions sessionInfo={sessionInfo} />
     </aside>
   );
 }

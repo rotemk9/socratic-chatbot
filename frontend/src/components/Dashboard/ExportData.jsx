@@ -76,7 +76,7 @@ function studentReportHtml(s, messages) {
 
   return `
     <section class="student">
-      <h2>${esc(s.studentName || "ללא שם")}</h2>
+      <h2>${esc(s.studentName?.trim() ? s.studentName : "משתתף " + (s.studentNumber || "—"))}</h2>
       <p class="meta">ת״ז: ${esc(s.studentNumber || "—")} | קבוצה: ${esc(s.group)} | סטטוס: ${esc(
     s.status
   )}</p>
@@ -172,7 +172,7 @@ function ExportData() {
       }
       openPrint(
         printablePage(
-          `דוח משתתף — ${s.studentName || "ללא שם"}`,
+          `דוח משתתף — ${s.studentName?.trim() ? s.studentName : "משתתף " + (s.studentNumber || "—")}`,
           studentReportHtml(s, messages)
         )
       );
@@ -231,7 +231,7 @@ function ExportData() {
               className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-white/5 dark:bg-[#2a2f42]"
             >
               <span className="text-sm text-slate-800 dark:text-slate-200">
-                {s.studentName || "ללא שם"} · ת״ז {s.studentNumber || "—"} · {s.group}
+                {s.studentName?.trim() ? s.studentName : `משתתף ${s.studentNumber || "—"}`} · {s.group}
               </span>
               <button
                 onClick={() => exportStudent(s)}
