@@ -55,13 +55,8 @@ function Header({ showLogout, onLogout }) {
           </p>
         </div>
 
-        {/* Right Side: Badge, Theme Toggle, and Logout */}
+        {/* Right Side: Theme Toggle, and Logout */}
         <div className="flex items-center justify-center gap-3 sm:gap-4">
-          
-          {/* Badge: Hidden on small screens, visible on 'sm' and up */}
-          <span className="hidden rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 px-5 py-2 text-sm font-bold text-white shadow-lg shadow-purple-500/20 sm:inline-block">
-            Advanced Web Development Project
-          </span>
 
           {/* Theme Toggle Button */}
           <button
