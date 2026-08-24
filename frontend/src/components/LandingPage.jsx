@@ -21,16 +21,6 @@ function LandingPage({ onStudentClick, onResearcherClick }) {
       
       {/* Hero Section */}
       <div className="mb-12 max-w-3xl text-center">
-        {/* Project category badge */}
-        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-purple-200 bg-purple-50 px-4 py-1.5 text-sm font-semibold text-purple-700 backdrop-blur-md dark:border-purple-500/30 dark:bg-purple-500/10 dark:text-purple-300">
-          {/* Animated status indicator */}
-          <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-purple-400 opacity-75"></span>
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-purple-500"></span>
-          </span>
-          Advanced Web Development Project
-        </div>
-        
         {/* Main platform title */}
         <h1 className="mb-6 text-5xl font-extrabold tracking-tight text-slate-900 md:text-6xl lg:text-7xl dark:text-white">
           SystemThinker <span className="bg-gradient-to-r from-purple-500 to-indigo-500 bg-clip-text text-transparent dark:from-purple-400 dark:to-indigo-400">AI</span>
