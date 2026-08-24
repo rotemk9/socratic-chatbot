@@ -141,14 +141,9 @@ async function getSession(req, res) {
       });
     }
 
-    // Automatic fallback: if the researcher did not assign a group within the
-    // allowed window, assign one randomly so the student is not stuck waiting.
-    if (session.group === "Pending") {
-      const ageMs = Date.now() - new Date(session.createdAt).getTime();
-      if (ageMs >= AUTO_ASSIGN_AFTER_MS) {
-        await applyGroup(session, assignRandomGroup());
-      }
-    }
+    // NOTE: There is intentionally NO automatic group assignment. A participant
+    // stays in "Pending" (on the waiting screen) until the researcher manually
+    // assigns them a group in the admin panel — full manual control.
 
     // Return the formatted user and session information
     res.json(formatSessionResponse(session.studentId, session));
