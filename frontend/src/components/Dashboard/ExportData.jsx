@@ -1,6 +1,16 @@
 import { useEffect, useState, useCallback } from "react";
+import * as XLSX from "xlsx";
 import { getDashboardData } from "../../services/dashboardService";
 import { getChatMessages } from "../../services/chatService";
+import { deleteStudent, deleteAllStudents } from "../../services/sessionService";
+
+// Read a questionnaire's Likert answers (a map "0".."26") in order as [label, value] rows
+function likertRows(questionnaire) {
+  const map = (questionnaire && questionnaire.likertAnswers) || {};
+  return Object.keys(map)
+    .sort((a, b) => Number(a) - Number(b))
+    .map((k) => [`פריט ${Number(k) + 1}`, map[k]]);
+}
 
 // Escape text so it is safe to place inside the printable HTML
 function esc(v) {
@@ -181,6 +191,95 @@ function ExportData() {
     }
   }
 
+  // Export one participant's full record as a structured Excel (.xlsx) file.
+  // Reuses the same dashboard data + chat messages as the PDF export; it only
+  // READS data and never modifies or deletes anything.
+  async function exportStudentExcel(s) {
+    try {
+      setBusy(true);
+
+      // Fetch the participant's chat transcript (read-only)
+      let messages = [];
+      if (s.chatId) {
+        try {
+          messages = await getChatMessages(s.chatId);
+        } catch (e) {
+          console.error("messages fetch failed", e);
+        }
+      }
+
+      const displayName = s.studentName?.trim()
+        ? s.studentName
+        : `משתתף ${s.studentNumber || "—"}`;
+
+      // Build a workbook with a sheet per data category
+      const wb = XLSX.utils.book_new();
+
+      // 1) Overview: identity, group, status, progress, timestamps
+      const overview = [
+        ["שדה", "ערך"],
+        ["שם", s.studentName || ""],
+        ["ת״ז / קוד", s.studentNumber || ""],
+        ["קבוצה", s.group || ""],
+        ["סטטוס", s.status === "completed" ? "סיים" : "פעיל"],
+        ["שכבה נוכחית", s.currentLayer || ""],
+        ["התקדמות (%)", s.progress ?? ""],
+        ["רמזים בשימוש", s.hintsUsed ?? ""],
+        ["שערים שנפתחו", (s.gateEvents || []).length],
+        ["עודכן", s.updatedAt || ""],
+      ];
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(overview), "סקירה");
+
+      // 2) Pre-task questionnaire (if completed)
+      if (s.preTask) {
+        const pre = s.preTask;
+        const preRows = [
+          ["שאלה", "תשובה"],
+          ["הסכמה", pre.consent],
+          ["מגדר", pre.gender],
+          ["גיל", pre.age],
+          ["השכלה", pre.education],
+          ["עבד בהנדסת תוכנה", pre.workedInSE],
+          ["תפקיד וניסיון", pre.roleAndExperience],
+          ["למד הנדסת תוכנה", pre.studiedSE],
+          ["השתמש בבוט סוקרטי", pre.usedSocraticBot],
+          ["ניסיון קודם עם בוט", pre.socraticBotExperience],
+          ["שאלה פתוחה 1", pre.openQ1],
+          ["שאלה פתוחה 2", pre.openQ2],
+          ...likertRows(pre),
+        ];
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(preRows), "שאלון מקדים");
+      }
+
+      // 3) Post-task questionnaire (if completed)
+      if (s.postTask) {
+        const post = s.postTask;
+        const postRows = [
+          ["שאלה", "תשובה"],
+          ["הבוט נתן תשובות ישירות", post.didBotGiveAnswers],
+          ["השאלות עזרו לחשיבה (1-5)", post.didQuestionsHelpThinking],
+          ["מאמץ נתפס (1-5)", post.perceivedEffort],
+          ["שביעות רצון (1-5)", post.satisfaction],
+          ["משוב חופשי", post.feedback],
+          ...likertRows(post),
+        ];
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(postRows), "שאלון מסכם");
+      }
+
+      // 4) Chat transcript with timestamps
+      const chatRows = [["דובר", "הודעה", "זמן"]];
+      (messages || []).forEach((m) => {
+        chatRows.push([senderLabel(m.sender), m.text || "", m.createdAt || ""]);
+      });
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(chatRows), "שיחה");
+
+      // Download the file, clearly named for this participant
+      XLSX.writeFile(wb, `participant-${s.studentNumber || s.studentId || "unknown"}.xlsx`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   // Export every student's record as one printable PDF
   async function exportAll() {
     try {
@@ -204,17 +303,64 @@ function ExportData() {
     }
   }
 
+  // Permanently delete ALL participants after a strong confirmation
+  async function removeAll() {
+    if (students.length === 0) return;
+    if (!window.confirm(`אזהרה: פעולה זו תמחק לצמיתות את כל ${students.length} המשתתפים וכל הנתונים שלהם. לא ניתן לבטל. להמשיך?`)) {
+      return;
+    }
+    try {
+      setBusy(true);
+      await deleteAllStudents();
+      setStudents([]);
+      await load();
+    } catch (e) {
+      console.error("failed to delete all", e);
+      load();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Permanently delete a single participant after confirmation
+  async function removeStudent(s) {
+    const label = s.studentName?.trim() ? s.studentName : `משתתף ${s.studentNumber || "—"}`;
+    if (!window.confirm(`למחוק לצמיתות את ${label} וכל הנתונים שלו? לא ניתן לבטל.`)) {
+      return;
+    }
+    try {
+      setBusy(true);
+      setStudents((prev) => prev.filter((x) => x.sessionId !== s.sessionId));
+      await deleteStudent(s.sessionId);
+      await load();
+    } catch (e) {
+      console.error("failed to delete student", e);
+      load();
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/5 dark:bg-[#1e2333]" dir="rtl">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-lg font-bold text-slate-900 dark:text-white">ייצוא דוחות (PDF)</h3>
-        <button
-          onClick={exportAll}
-          disabled={busy || students.length === 0}
-          className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white transition-all hover:bg-emerald-700 disabled:opacity-50"
-        >
-          ייצא דוח של כל המשתתפים
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={exportAll}
+            disabled={busy || students.length === 0}
+            className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white transition-all hover:bg-emerald-700 disabled:opacity-50"
+          >
+            ייצא דוח של כל המשתתפים
+          </button>
+          <button
+            onClick={removeAll}
+            disabled={busy || students.length === 0}
+            className="rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white transition-all hover:bg-red-700 disabled:opacity-50"
+          >
+            מחק הכל
+          </button>
+        </div>
       </div>
 
       <p className="mb-3 text-xs text-slate-500 dark:text-gray-400">
@@ -233,13 +379,22 @@ function ExportData() {
               <span className="text-sm text-slate-800 dark:text-slate-200">
                 {s.studentName?.trim() ? s.studentName : `משתתף ${s.studentNumber || "—"}`} · {s.group}
               </span>
-              <button
-                onClick={() => exportStudent(s)}
-                disabled={busy}
-                className="rounded-lg bg-slate-600 px-3 py-1.5 text-xs font-bold text-white transition-all hover:bg-slate-700 disabled:opacity-50"
-              >
-                הורד PDF
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => exportStudent(s)}
+                  disabled={busy}
+                  className="rounded-lg bg-slate-600 px-3 py-1.5 text-xs font-bold text-white transition-all hover:bg-slate-700 disabled:opacity-50"
+                >
+                  הורד PDF
+                </button>
+                <button
+                  onClick={() => exportStudentExcel(s)}
+                  disabled={busy}
+                  className="rounded-lg bg-green-700 px-3 py-1.5 text-xs font-bold text-white transition-all hover:bg-green-800 disabled:opacity-50"
+                >
+                  הורד Excel
+                </button>
+              </div>
             </li>
           ))}
         </ul>
