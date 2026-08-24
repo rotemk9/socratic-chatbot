@@ -79,42 +79,43 @@ if (role === "researcher") {
       });
     }
 
-    // Search for an active session belonging to the user
-    let session = await Session.findOne({
+    // A NEW run must ALWAYS start a completely clean chat. Archive any previous
+    // active session for this participant (its chat/messages/questionnaires stay
+    // in the database as historical records — they are NOT deleted), then create
+    // a brand-new session, chat, and progress record below.
+    await Session.updateMany(
+      { studentId: user._id, status: "active" },
+      { status: "completed" }
+    );
+
+    // Create a brand-new active session. It inherits the participant's group,
+    // which stays locked (Pending participants still wait for assignment).
+    const session = await Session.create({
       studentId: user._id,
-      status: "active",
+      group: user.group,
     });
 
-    // Create a new session if the user does not already have an active session
-    if (!session) {
-      session = await Session.create({
-        studentId: user._id,
-        group: user.group,
-      });
+    // Create a fresh, EMPTY chat connected to the new session so the conversation
+    // starts from the beginning with no previous messages.
+    const chat = await Chat.create({
+      studentId: user._id,
+      sessionId: session._id,
+      title: `${user.name} - SystemThinker Chat`,
+    });
 
-      // Create a chat connected to the new session
-      const chat = await Chat.create({
-        studentId: user._id,
-        sessionId: session._id,
-        title: `${user.name} - SystemThinker Chat`,
-      });
+    // Connect the created chat to the session and save
+    session.chatId = chat._id;
+    await session.save();
 
-      // Connect the created chat to the session
-      session.chatId = chat._id;
-
-      // Save the updated session
-      await session.save();
-
-      // Create the initial progress record for the student
-      await StudentProgress.create({
-        studentId: user._id,
-        sessionId: session._id,
-        currentLayer: session.currentLayer,
-        progress: 0,
-        hintsUsed: 0,
-        group: user.group,
-      });
-    }
+    // Create a fresh progress record for this new session
+    await StudentProgress.create({
+      studentId: user._id,
+      sessionId: session._id,
+      currentLayer: session.currentLayer,
+      progress: 0,
+      hintsUsed: 0,
+      group: user.group,
+    });
 
     // Return the formatted user and session information
     res.json(formatSessionResponse(user, session));
@@ -188,17 +189,19 @@ async function getPendingSessions(req, res) {
   }
 }
 
-// Let the researcher manually assign a session to a research group
+// Let the researcher manually assign a session to a research group.
+// The assignment is PERMANENT: it can only be made while the session is still
+// "Pending", and can never be changed, switched, or reset afterwards. This lock
+// lives in the data layer, so it also protects against any other UI/API path.
 async function assignGroup(req, res) {
   try {
     // Extract the session ID and the chosen group from the request body
     const { sessionId, group } = req.body;
 
-    // Allow the two research groups, plus "Pending" so the admin can move a
-    // student back to the waiting state (un-approve) if needed.
-    if (!["Experimental Group", "Control Group", "Pending"].includes(group)) {
+    // Only the two real research groups may be assigned (no reset to Pending)
+    if (!["Experimental Group", "Control Group"].includes(group)) {
       return res.status(400).json({
-        message: "Group must be 'Experimental Group', 'Control Group', or 'Pending'",
+        message: "Group must be 'Experimental Group' or 'Control Group'",
       });
     }
 
@@ -208,6 +211,14 @@ async function assignGroup(req, res) {
     // Return an error if the session does not exist
     if (!session) {
       return res.status(404).json({ message: "Session not found" });
+    }
+
+    // LOCK: once a group has been assigned it is permanent and cannot change.
+    if (session.group !== "Pending") {
+      return res.status(409).json({
+        message: "Group already assigned and locked; it cannot be changed.",
+        group: session.group,
+      });
     }
 
     // Apply the chosen group across the session, user, and progress records
