@@ -11,7 +11,6 @@ import ChatBox from "./components/Chat/ChatBox";
 import SidePanel from "./components/SidePanel/SidePanel";
 import DashboardPreview from "./components/Dashboard/DashboardPreview";
 import ResearchAnalytics from "./components/Dashboard/ResearchAnalytics";
-import ProgressBar from "./components/ProgressBar";
 import StartSessionForm from "./components/StartSessionForm";
 import ResearcherLogin from "./components/ResearcherLogin";
 import WaitingScreen from "./components/WaitingScreen";
@@ -146,9 +145,6 @@ function App() {
               ) : (
                 // Display the active student session interface
                 <div className="flex flex-col space-y-6">
-                  {/* Display progress through the systems-thinking layers */}
-                  <ProgressBar />
-
                   <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
                     {/* Main chat area */}
                     <div className="lg:col-span-2">
