@@ -198,26 +198,29 @@ function AdminStudents() {
                 </span>
               </div>
 
-              {/* Group assignment / reassignment actions */}
-              <div className="flex flex-wrap gap-2">
-                <ActionButton
-                  student={s}
-                  group="Experimental Group"
-                  label="ניסוי"
-                  activeClass="bg-purple-600 text-white"
-                />
-                <ActionButton
-                  student={s}
-                  group="Control Group"
-                  label="ביקורת"
-                  activeClass="bg-slate-600 text-white"
-                />
-                <ActionButton
-                  student={s}
-                  group="Pending"
-                  label="החזר להמתנה"
-                  activeClass="bg-yellow-500 text-white"
-                />
+              {/* Group assignment (permanent). Only shown while Pending; once a
+                  group is assigned it is locked and cannot be changed or reset. */}
+              <div className="flex flex-wrap items-center gap-2">
+                {s.group === "Pending" ? (
+                  <>
+                    <ActionButton
+                      student={s}
+                      group="Experimental Group"
+                      label="ניסוי"
+                      activeClass="bg-purple-600 text-white"
+                    />
+                    <ActionButton
+                      student={s}
+                      group="Control Group"
+                      label="ביקורת"
+                      activeClass="bg-slate-600 text-white"
+                    />
+                  </>
+                ) : (
+                  <span className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-500 dark:bg-white/5 dark:text-slate-400">
+                    🔒 נעול
+                  </span>
+                )}
                 <button
                   onClick={() => removeStudent(s)}
                   disabled={busyId === s.sessionId}
