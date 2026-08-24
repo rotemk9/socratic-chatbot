@@ -10,14 +10,12 @@ function SessionInfo({ sessionInfo }) {
         Session Info
       </h2>
 
-      {/* Mobile: 2 columns. Tablet: 3 columns. Desktop Sidebar: 1 column */}
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 lg:grid-cols-1">
-        {/* Display the student's name. The research group is intentionally
-            NOT displayed to the participant (research blinding). */}
+      {/* Mobile: 2 columns. Desktop Sidebar: 1 column.
+          The research group and the current layer are intentionally NOT shown
+          to the participant. */}
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-1">
+        {/* Display the student's name */}
         <InfoCard title="Student" value={sessionInfo.userName || sessionInfo.studentName} />
-
-        {/* Display the student's current learning layer */}
-        <InfoCard title="Current Layer" value={sessionInfo.currentLayer} />
 
         {/* Display the number of hints used during the session */}
         <InfoCard title="Hints Used" value={sessionInfo.hintsUsed} />
