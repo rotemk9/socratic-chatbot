@@ -4,14 +4,6 @@ import { getDashboardData } from "../../services/dashboardService";
 import { getChatMessages } from "../../services/chatService";
 import { deleteStudent, deleteAllStudents } from "../../services/sessionService";
 
-// Read a questionnaire's Likert answers (a map "0".."26") in order as [label, value] rows
-function likertRows(questionnaire) {
-  const map = (questionnaire && questionnaire.likertAnswers) || {};
-  return Object.keys(map)
-    .sort((a, b) => Number(a) - Number(b))
-    .map((k) => [`פריט ${Number(k) + 1}`, map[k]]);
-}
-
 // Escape text so it is safe to place inside the printable HTML
 function esc(v) {
   const s = v === null || v === undefined ? "" : String(v);
@@ -28,51 +20,15 @@ function senderLabel(sender) {
   return "משתתף";
 }
 
-// Render a questionnaire's Likert answers (stored as a map) as readable lines
-function likertHtml(questionnaire) {
-  const map = (questionnaire && questionnaire.likertAnswers) || {};
-  const keys = Object.keys(map).sort((a, b) => Number(a) - Number(b));
-  if (keys.length === 0) return "<p>לא נענה.</p>";
-  return (
-    "<ol>" +
-    keys.map((k) => `<li>${esc(map[k])}</li>`).join("") +
-    "</ol>"
-  );
-}
-
 // Build a full, readable HTML report section for one student
 function studentReportHtml(s, messages) {
-  const pre = s.preTask;
-  const post = s.postTask;
-
   const gates =
     s.gateEvents && s.gateEvents.length
       ? "<ul>" + s.gateEvents.map((g) => `<li>${esc(g.gate || g.name || "")}</li>`).join("") + "</ul>"
       : "<p>לא נפתחו שערים.</p>";
 
-  const preHtml = pre
-    ? `
-      <p><b>הסכמה:</b> ${esc(pre.consent)} &nbsp; <b>מגדר:</b> ${esc(pre.gender)} &nbsp; <b>גיל:</b> ${esc(pre.age)}</p>
-      <p><b>השכלה:</b> ${esc(pre.education)}</p>
-      <p><b>עבד בהנדסת תוכנה:</b> ${esc(pre.workedInSE)} &nbsp; <b>תפקיד וניסיון:</b> ${esc(pre.roleAndExperience)}</p>
-      <p><b>למד הנדסת תוכנה:</b> ${esc(pre.studiedSE)} &nbsp; <b>השתמש בבוט סוקרטי:</b> ${esc(pre.usedSocraticBot)}</p>
-      <p><b>ניסיון קודם עם בוט:</b> ${esc(pre.socraticBotExperience)}</p>
-      <p><b>תשובות סולם (חשיבה מערכתית — לפני):</b></p>
-      ${likertHtml(pre)}
-      <p><b>שאלה פתוחה 1:</b> ${esc(pre.openQ1)}</p>
-      <p><b>שאלה פתוחה 2:</b> ${esc(pre.openQ2)}</p>`
-    : "<p>השאלון המקדים לא הושלם.</p>";
-
-  const postHtml = post
-    ? `
-      <p><b>תשובות סולם (חשיבה מערכתית — אחרי):</b></p>
-      ${likertHtml(post)}
-      <p><b>הבוט נתן תשובות ישירות:</b> ${esc(post.didBotGiveAnswers)}</p>
-      <p><b>השאלות עזרו לחשיבה (1-5):</b> ${esc(post.didQuestionsHelpThinking)}</p>
-      <p><b>מאמץ נתפס (1-5):</b> ${esc(post.perceivedEffort)}</p>
-      <p><b>שביעות רצון (1-5):</b> ${esc(post.satisfaction)}</p>
-      <p><b>משוב חופשי:</b> ${esc(post.feedback)}</p>`
-    : "<p>השאלון המסכם לא הושלם.</p>";
+  // Human-readable gender label
+  const genderLabel = s.gender === "male" ? "זכר" : s.gender === "female" ? "נקבה" : "—";
 
   const chatHtml =
     messages && messages.length
@@ -87,7 +43,7 @@ function studentReportHtml(s, messages) {
   return `
     <section class="student">
       <h2>${esc(s.studentName?.trim() ? s.studentName : "משתתף " + (s.studentNumber || "—"))}</h2>
-      <p class="meta">ת״ז: ${esc(s.studentNumber || "—")} | קבוצה: ${esc(s.group)} | סטטוס: ${esc(
+      <p class="meta">ת״ז: ${esc(s.studentNumber || "—")} | מין: ${esc(genderLabel)} | קבוצה: ${esc(s.group)} | סטטוס: ${esc(
     s.status
   )}</p>
 
@@ -97,12 +53,6 @@ function studentReportHtml(s, messages) {
   )}</p>
       <p><b>שערים שנפתחו:</b></p>
       ${gates}
-
-      <h3>שאלון מקדים</h3>
-      ${preHtml}
-
-      <h3>שאלון מסכם</h3>
-      ${postHtml}
 
       <h3>שיחת הצ'אט</h3>
       ${chatHtml}
@@ -231,43 +181,8 @@ function ExportData() {
       ];
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(overview), "סקירה");
 
-      // 2) Pre-task questionnaire (if completed)
-      if (s.preTask) {
-        const pre = s.preTask;
-        const preRows = [
-          ["שאלה", "תשובה"],
-          ["הסכמה", pre.consent],
-          ["מגדר", pre.gender],
-          ["גיל", pre.age],
-          ["השכלה", pre.education],
-          ["עבד בהנדסת תוכנה", pre.workedInSE],
-          ["תפקיד וניסיון", pre.roleAndExperience],
-          ["למד הנדסת תוכנה", pre.studiedSE],
-          ["השתמש בבוט סוקרטי", pre.usedSocraticBot],
-          ["ניסיון קודם עם בוט", pre.socraticBotExperience],
-          ["שאלה פתוחה 1", pre.openQ1],
-          ["שאלה פתוחה 2", pre.openQ2],
-          ...likertRows(pre),
-        ];
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(preRows), "שאלון מקדים");
-      }
-
-      // 3) Post-task questionnaire (if completed)
-      if (s.postTask) {
-        const post = s.postTask;
-        const postRows = [
-          ["שאלה", "תשובה"],
-          ["הבוט נתן תשובות ישירות", post.didBotGiveAnswers],
-          ["השאלות עזרו לחשיבה (1-5)", post.didQuestionsHelpThinking],
-          ["מאמץ נתפס (1-5)", post.perceivedEffort],
-          ["שביעות רצון (1-5)", post.satisfaction],
-          ["משוב חופשי", post.feedback],
-          ...likertRows(post),
-        ];
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(postRows), "שאלון מסכם");
-      }
-
-      // 4) Chat transcript with timestamps
+      // 2) Full chat transcript — every message the participant exchanged with
+      // the chatbot, in order, with timestamps (identical to the PDF export).
       const chatRows = [["דובר", "הודעה", "זמן"]];
       (messages || []).forEach((m) => {
         chatRows.push([senderLabel(m.sender), m.text || "", m.createdAt || ""]);
