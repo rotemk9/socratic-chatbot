@@ -1,13 +1,12 @@
 // Import React hooks for state, refs, and the polling effect
 import { useEffect, useState, useCallback, useRef } from "react";
 
-// Import the API helpers for listing, assigning, completing, and deleting students
+// Import the API helpers for listing, assigning, and deleting students
 import {
   getAllStudents,
   assignSessionGroup,
   deleteStudent,
   deleteAllStudents,
-  completeSession,
 } from "../../services/sessionService";
 
 // Human-readable Hebrew label for each group value
@@ -156,25 +155,6 @@ function AdminStudents() {
     }
   }
 
-  // Manually mark a participant's session as completed (e.g., if they closed the
-  // browser before the timer ended, so it never auto-completed).
-  async function markComplete(s) {
-    try {
-      setBusyId(s.sessionId);
-      // Optimistically show it as completed for a snappy UI
-      setStudents((prev) =>
-        prev.map((x) => (x.sessionId === s.sessionId ? { ...x, status: "completed" } : x))
-      );
-      await completeSession(s.sessionId);
-      await load();
-    } catch (err) {
-      console.error("failed to complete session:", err);
-      load();
-    } finally {
-      setBusyId(null);
-    }
-  }
-
   // Small counts for the summary line
   const counts = {
     pending: students.filter((s) => s.group === "Pending").length,
@@ -315,17 +295,6 @@ function AdminStudents() {
                   <span className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-500 dark:bg-white/5 dark:text-slate-400">
                     🔒 נעול
                   </span>
-                )}
-                {/* Manual "mark as completed" — useful if the student closed the
-                    browser before the timer ended and it never auto-completed */}
-                {s.status !== "completed" && (
-                  <button
-                    onClick={() => markComplete(s)}
-                    disabled={busyId === s.sessionId}
-                    className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-bold text-white transition-all hover:bg-green-700 disabled:opacity-60"
-                  >
-                    סמן כהושלם
-                  </button>
                 )}
                 <button
                   onClick={() => removeStudent(s)}
