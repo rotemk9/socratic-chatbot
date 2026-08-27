@@ -16,6 +16,11 @@ export function increaseHintCounter(sessionId) {
   return apiPost("/session/increase-hint", { sessionId });
 }
 
+// Mark a session as completed (persisted to the database when time runs out)
+export function completeSession(sessionId) {
+  return apiPost("/session/complete", { sessionId });
+}
+
 // Retrieve the list of students who are waiting for a manual group assignment
 export function getPendingSessions() {
   return apiGet("/session/pending");
