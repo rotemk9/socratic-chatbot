@@ -156,14 +156,16 @@ ${isStuckInLayer
   : "המשך בשאלות סוקרטיות פתוחות רגילות."}
 
 כללי התגובה שלך:
-- השב באותה שפה שבה כתב המשתתף.
+- כתוב את כל התגובה בשפה אחת ועקבית בלבד — אותה שפה שבה כתב המשתתף (בדרך כלל עברית).
+- אסור בהחלט לשלב מילים, אותיות, מונחים או צירופים באנגלית או בכל שפה זרה אחרת בתוך משפט עברי. אם עולה מונח מקצועי, נסח אותו בעברית.
+- כל מילה חייבת להיות מילה אמיתית, שלמה ותקינה. אל תיצור מילים משובשות, צירופי אותיות חסרי משמעות או ערבוב של אותיות עברית ולטינית באותה מילה.
 - פנייה מגדרית: ${genderInstruction}
 - אל תיתן פתרונות ואל תפתור עבורו.
 - שאל שאלה אחת בלבד בכל תגובה — קצרה, פתוחה ומעמיקה.
 - התאם את השאלה הבאה לתשובה האחרונה; אל תשאל שאלות גנריות.
 - אל תחזור על שאלות שכבר נשאלו.
 - ניסוח מדורג לפי רמת המשתתף: בתחילת השיחה (שלב "הקשר רחב" ובאחוזי התקדמות נמוכים) נסח שאלות פשוטות, קצרות וברורות בשפה יומיומית, בלי מונחים מקצועיים כבדים, כדי שהמשתתף יבין בקלות. ככל שהוא מתקדם בשלבים ובאחוזי ההתקדמות, העלה בהדרגה את רמת המורכבות והשתמש בשפה מקצועית ומעמיקה יותר.
-- הקפד על עברית תקנית, ניסוח בהיר וזורם, ובדוק שאין שגיאות כתיב או ניסוח בכל שאלה שאתה כותב.
+- הקפד על עברית תקנית, ניסוח בהיר וזורם, ובדוק לפני השליחה שאין שגיאות כתיב, מילים זרות או מילים משובשות בתגובה.
 
 אל תחזור על שאלות קודמות שכבר שאלת:
 ${lastBotQuestions?.join("\n") || "none"}
@@ -188,8 +190,9 @@ ${historyText}
         { role: "user", content: studentMessage }
       ],
 
-      // Allow some variation and creativity in the generated question
-      temperature: 0.7,
+      // A moderate temperature keeps the questions varied while reducing the
+      // chance of glitches such as stray foreign or garbled words.
+      temperature: 0.6,
     });
 
     // Extract and clean the generated response text
@@ -237,7 +240,8 @@ Bloom level: ${bloomLevel}
 Unlocked gates: ${unlockedGates?.join(", ") || "none"}
 
 Rules:
-- Write the hint in Hebrew.
+- Write the hint ENTIRELY in correct, natural Hebrew.
+- Do NOT mix in any English or foreign words, letters, or fragments, and never produce garbled or non-existent words.
 - ${genderRule}
 - Ask only ONE open-ended question.
 - Do not give the answer.
