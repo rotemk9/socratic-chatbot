@@ -39,19 +39,19 @@ function ChatMessages({ messages, isTyping, gender }) {
 
         {/* Display the first part of the case-study description */}
         <p className="mb-2 text-sm sm:text-[15px] leading-relaxed text-slate-700 dark:text-slate-300">
-          יום שישי בבוקר, שעת שיא. נוסע מגיע לטרמינל 3 שעתיים לפני הטיסה, ועובר דרך צ'ק-אין, מסירת מזוודה, בידוק ביטחוני, ביקורת דרכונים ועלייה למטוס. מבחינת הנוסע, מדובר במעבר פשוט מתחנה לתחנה.
+          יום שישי בבוקר, שעת שיא. נוסעים מגיעים לטרמינל 3 כשעתיים לפני הטיסה, ועוברים דרך צ'ק-אין, מסירת מזוודות, בידוק ביטחוני, ביקורת דרכונים ועלייה למטוס. מבחינת הנוסעים, מדובר במעבר פשוט מתחנה לתחנה.
         </p>
 
         {/* Describe only the first disruption; the other events are introduced
             gradually inside the chat as the session progresses */}
         <p className="mb-5 sm:mb-6 text-sm sm:text-[15px] leading-relaxed text-slate-700 dark:text-slate-300">
-          באותו בוקר מתרחש אירוע שהנוסע כלל אינו מודע אליו: מערכת מיון המזוודות האוטומטית מאטה ל-60% מהקצב בגלל תקלה במסוע. במהלך השיחה עשויים להתווסף אירועים נוספים בשדה התעופה.
+          באותו בוקר מתרחש אירוע שהנוסעים כלל אינם מודעים אליו: מערכת מיון המזוודות האוטומטית מאטה ל-60% מהקצב בגלל תקלה במסוע. במהלך השיחה עשויים להתווסף אירועים נוספים בשדה התעופה.
         </p>
 
         {/* Highlight the main task that the student must solve */}
         <div className="mb-5 sm:mb-6 rounded-xl border border-indigo-200 bg-white/60 p-4 shadow-sm dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:shadow-inner">
           <p className="text-base sm:text-lg font-bold leading-snug text-indigo-800 dark:text-indigo-300">
-            המשימה: נתח את המתרחש מתוך ראייה מערכתית כוללת, תוך התייחסות לגבולות המערכת ולגורמים שאינם הנדסיים, ובחן את ההשלכות האפשריות של שינויים במערכת.
+            המשימה: לנתח את המתרחש מתוך ראייה מערכתית כוללת, תוך התייחסות לגבולות המערכת ולגורמים שאינם הנדסיים, ולבחון את ההשלכות האפשריות של שינויים במערכת.
           </p>
         </div>
       </div>
