@@ -7,6 +7,15 @@ const StudentProgress = require("../models/StudentProgress");
 // Import the GateEvent model for recording newly unlocked requirements
 const GateEvent = require("../models/GateEvent");
 
+// Import the Message model for counting how many turns a student spent in a layer
+const Message = require("../models/Message");
+
+// Number of student answers in a single layer after which we advance to the
+// next thinking stage even if not every gate was unlocked. This guarantees the
+// participant moves through all four stages during the session instead of
+// getting stuck when the AI evaluation is strict.
+const MAX_MESSAGES_PER_LAYER = 5;
+
 // Import the OpenAI service function used to evaluate student messages
 const { evaluateLayerWithOpenAI } = require("./openaiService");
 
@@ -88,18 +97,32 @@ async function evaluateStudentMessage({ studentId, sessionId, messageText }) {
   // Check whether all requirements of the current layer are completed
   const layerCompleted = isLayerCompleted(currentLayer, session.unlockedGates);
 
-  // Move the student forward when the current layer is completed
-  if (layerCompleted) {
-    // Find the next layer in the learning sequence
-    const nextLayer = getNextLayer(currentLayer);
+  // Find the next layer in the learning sequence
+  const nextLayer = getNextLayer(currentLayer);
 
-    // Move to the next layer if another layer exists
+  // Count how many messages the student has already sent within this layer
+  // (the current message is already saved, so it is included in the count).
+  const studentMessagesInLayer = await Message.countDocuments({
+    sessionId,
+    sender: "user",
+    layer: currentLayer,
+  });
+
+  // Advance the student forward through the stages
+  if (layerCompleted) {
+    // The student completed every gate — move to the next layer, or finish
     if (nextLayer) {
       session.currentLayer = nextLayer;
     } else {
       // Mark the session as completed after the final layer
       session.status = "completed";
     }
+  } else if (nextLayer && studentMessagesInLayer >= MAX_MESSAGES_PER_LAYER) {
+    // The student spent enough turns on this stage without completing all gates.
+    // Move them to the next stage anyway so they experience the full sequence
+    // of systems-thinking stages. (On the final stage we do NOT auto-finish —
+    // the session ends when the timer runs out.)
+    session.currentLayer = nextLayer;
   }
 
   // Save all changes made to the session
