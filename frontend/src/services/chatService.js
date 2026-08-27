@@ -15,3 +15,8 @@ export function sendChatMessage(chatId, messageData) {
 export function getChatHint(chatId, hintData) {
   return apiPost(`/chat/${chatId}/hint`, hintData);
 }
+
+// Save a timed scenario-event message into the chat transcript
+export function saveEventMessage(chatId, eventData) {
+  return apiPost(`/chat/${chatId}/event`, eventData);
+}
