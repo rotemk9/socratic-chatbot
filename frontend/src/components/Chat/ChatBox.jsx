@@ -1,8 +1,8 @@
 // Import React hooks for managing state, side effects, and persistent references
 import { useEffect, useState, useRef } from "react";
 
-// Import functions for loading messages and sending new chat messages
-import { getChatMessages, sendChatMessage } from "../../services/chatService";
+// Import functions for loading messages, sending messages, and saving events
+import { getChatMessages, sendChatMessage, saveEventMessage } from "../../services/chatService";
 
 // Import the chat interface components
 import ChatHeader from "./ChatHeader";
@@ -64,8 +64,13 @@ function ChatBox() {
   // message so the bot only references events the student can already see.
   const [revealedCount, setRevealedCount] = useState(1);
 
-  // Create a stable fallback start time that remains unchanged between renders
+  // Create a stable fallback start time that remains unchanged between renders.
+  // This also serves as the moment the chat opened, used to time event reveals.
   const stableFallbackTime = useRef(Date.now()).current;
+
+  // Track how many events have already been revealed (a ref so the interval
+  // always sees the latest value without needing to re-subscribe).
+  const revealedRef = useRef(1);
 
   // Extract the required IDs from the current session
   const chatId = safeSession?.chatId;
@@ -95,31 +100,66 @@ function ChatBox() {
     loadMessages();
   }, [chatId]);
 
-  // Reveal the additional airport events on a timer measured from the moment the
-  // chat opens. Each reveal both adds a bot message to the conversation and
-  // unlocks the event for the backend prompt (via revealedCount).
+  // Reveal the additional airport events once enough time has passed since the
+  // chat opened. We check on a short interval (instead of one long setTimeout)
+  // so the reveal stays reliable even if the browser throttles background timers
+  // or the component re-renders during the session.
   useEffect(() => {
-    // Schedule one timer per event still to be revealed
-    const timers = REVEAL_SCHEDULE.map((reveal, index) =>
-      setTimeout(() => {
-        // Unlock the next event for the AI (event index 0 -> count 2, etc.)
-        setRevealedCount((count) => Math.max(count, index + 2));
+    // Reveal a single event: persist it, show it, and unlock it for the AI
+    async function revealEvent(reveal, eventNumber) {
+      // Mark it as revealed immediately so it can never fire twice
+      revealedRef.current = eventNumber;
+      setRevealedCount((count) => Math.max(count, eventNumber));
 
-        // Add the reveal to the conversation as an AI message
-        setMessages((prev) => [
-          ...prev,
-          {
-            _id: `reveal-${index + 2}`,
-            sender: "bot",
+      // Use the most recent valid session for the IDs
+      const session = safeSessionRef.current;
+
+      // Persist the event as a real bot message so it becomes part of the saved
+      // transcript and appears in the PDF and Excel exports. If saving fails,
+      // still show it locally so the student's experience is unaffected.
+      let savedMessage = null;
+      try {
+        if (session?.chatId && session?.sessionId && session?.userId) {
+          const response = await saveEventMessage(session.chatId, {
+            sessionId: session.sessionId,
+            studentId: session.userId,
             text: reveal.text,
-            createdAt: new Date().toISOString(),
-          },
-        ]);
-      }, reveal.afterMs)
-    );
+          });
+          savedMessage = response?.eventMessage || null;
+        }
+      } catch (error) {
+        console.error("Failed to save event message", error);
+      }
 
-    // Clear any pending timers if the chat closes before they fire
-    return () => timers.forEach((timer) => clearTimeout(timer));
+      // Add the reveal to the conversation (saved message if available)
+      setMessages((prev) => [
+        ...prev,
+        savedMessage || {
+          _id: `reveal-${eventNumber}`,
+          sender: "bot",
+          text: reveal.text,
+          createdAt: new Date().toISOString(),
+        },
+      ]);
+    }
+
+    // Every few seconds, reveal any event whose time has arrived
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - stableFallbackTime;
+
+      REVEAL_SCHEDULE.forEach((reveal, index) => {
+        const eventNumber = index + 2; // event 2, event 3, ...
+
+        // Skip events that are not due yet or were already revealed
+        if (elapsed < reveal.afterMs || revealedRef.current >= eventNumber) return;
+
+        // Reveal this event
+        revealEvent(reveal, eventNumber);
+      });
+    }, 5000);
+
+    // Stop checking when the chat closes
+    return () => clearInterval(interval);
     // Run once when the chat opens
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
