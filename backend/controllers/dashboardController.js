@@ -71,6 +71,9 @@ async function getDashboardData(req, res) {
             // Student's identification number
             studentNumber: item.studentId.studentId,
 
+            // Student's gender (collected at login)
+            gender: item.studentId.gender,
+
             // Research group assigned to the student
             group: item.group,
 
