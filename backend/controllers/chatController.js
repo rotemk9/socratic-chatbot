@@ -16,7 +16,6 @@ const StudentProgress = require("../models/StudentProgress");
 // Import the functions responsible for generating Socratic AI responses and hints
 const {
   generateSocraticResponse,
-  generateControlResponse,
   generateSocraticHint,
 } = require("../services/openaiService");
 
@@ -79,35 +78,16 @@ async function sendMessage(req, res) {
       layer: session.currentLayer,
     });
 
-    // Handle students who belong to the control group. They converse with a
-    // NORMAL (non-Socratic) chatbot — the comparison condition in the study.
+    // Handle students who belong to the control group. The control group does
+    // NOT receive any AI reply to their messages — their text is only saved.
+    // (They still receive the timed scenario reveals at 7 and 14 minutes, which
+    // are handled separately on the client.)
     if (session.group === "Control Group") {
       // Save the student's message in the control-group log
       await ControlGroupLog.create({
         studentId,
         sessionId,
         text,
-      });
-
-      // Retrieve the full chat history for context
-      const controlHistory = await Message.find({ chatId }).sort({ timestamp: 1 });
-
-      // Generate a normal, direct assistant reply (not Socratic)
-      const controlBotText = await generateControlResponse({
-        studentMessage: text,
-        chatHistory: controlHistory,
-        revealedCount: revealedCount || 1,
-        gender,
-      });
-
-      // Save the assistant's reply as a bot message
-      const controlBotMessage = await Message.create({
-        chatId,
-        sessionId,
-        studentId,
-        sender: "bot",
-        text: controlBotText,
-        layer: session.currentLayer,
       });
 
       // Evaluate the student's message and update the session progress
@@ -117,10 +97,10 @@ async function sendMessage(req, res) {
         messageText: text,
       });
 
-      // Return the student message together with the assistant's reply
+      // Return the result without generating an AI response
       return res.json({
         userMessage,
-        botMessage: controlBotMessage,
+        botMessage: null,
         session: updatedSession,
         controlGroup: true,
       });
