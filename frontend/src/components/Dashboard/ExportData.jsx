@@ -1,288 +1,103 @@
-import { useEffect, useState, useCallback } from "react";
-import * as XLSX from "xlsx";
-import JSZip from "jszip";
-import { getDashboardData } from "../../services/dashboardService";
-import { getChatMessages } from "../../services/chatService";
-import { deleteStudent, deleteAllStudents } from "../../services/sessionService";
+// Import React hooks for state, refs, and the polling effect
+import { useEffect, useState, useCallback, useRef } from "react";
 
-// Escape text so it is safe to place inside the printable HTML
-function esc(v) {
-  const s = v === null || v === undefined ? "" : String(v);
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-}
+// Import the API helpers for listing, assigning, completing, and deleting students
+import {
+  getAllStudents,
+  assignSessionGroup,
+  deleteStudent,
+  deleteAllStudents,
+  completeSession,
+} from "../../services/sessionService";
 
-// Human-readable label for a chat message sender
-function senderLabel(sender) {
-  const s = (sender || "").toLowerCase();
-  if (s.includes("bot") || s.includes("ai") || s.includes("assistant")) return "בוט";
-  return "משתתף";
-}
+// Human-readable Hebrew label for each group value
+const GROUP_LABEL = {
+  "Experimental Group": "ניסוי",
+  "Control Group": "ביקורת",
+  Pending: "ממתין לאישור",
+};
 
-// Hebrew label for a systems-thinking stage (layer) stored on each message
-function layerLabel(layer) {
-  const map = {
-    "Broad Context": "הקשר רחב",
-    Structure: "מבנה",
-    Dynamics: "דינמיקה",
-    Evaluation: "הערכה",
-  };
-  return map[layer] || layer || "";
-}
+// Badge colors for each group value
+const GROUP_BADGE = {
+  "Experimental Group":
+    "bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-300",
+  "Control Group":
+    "bg-slate-200 text-slate-700 dark:bg-slate-500/20 dark:text-slate-300",
+  Pending:
+    "bg-yellow-100 text-yellow-800 dark:bg-yellow-500/20 dark:text-yellow-200",
+};
 
-// Build a full, readable HTML report section for one student
-function studentReportHtml(s, messages) {
-  const gates =
-    s.gateEvents && s.gateEvents.length
-      ? "<ul>" + s.gateEvents.map((g) => `<li>${esc(g.gate || g.name || "")}</li>`).join("") + "</ul>"
-      : "<p>לא נפתחו שערים.</p>";
+/*
+  AdminStudents is the researcher's participant-management panel.
 
-  // Human-readable gender label
-  const genderLabel = s.gender === "male" ? "זכר" : s.gender === "female" ? "נקבה" : "—";
-
-  const chatHtml =
-    messages && messages.length
-      ? messages
-          .map(
-            (m) =>
-              `<p class="msg"><b>${esc(senderLabel(m.sender))}:</b> ${esc(m.text)}</p>`
-          )
-          .join("")
-      : "<p>אין הודעות.</p>";
-
-  return `
-    <section class="student">
-      <h2>${esc(s.studentName?.trim() ? s.studentName : "משתתף " + (s.studentNumber || "—"))}</h2>
-      <p class="meta">ת״ז: ${esc(s.studentNumber || "—")} | מין: ${esc(genderLabel)} | קבוצה: ${esc(s.group)} | סטטוס: ${esc(
-    s.status
-  )}</p>
-
-      <h3>התקדמות במשימה</h3>
-      <p>שכבה נוכחית: ${esc(s.currentLayer)} | התקדמות: ${esc(s.progress)}% | רמזים בשימוש: ${esc(
-    s.hintsUsed
-  )}</p>
-      <p><b>שערים שנפתחו:</b></p>
-      ${gates}
-
-      <h3>שיחת הצ'אט</h3>
-      ${chatHtml}
-    </section>`;
-}
-
-// Wrap one or more student report sections into a full printable HTML page
-function printablePage(title, bodyHtml) {
-  return `<!DOCTYPE html>
-<html lang="he" dir="rtl">
-<head>
-<meta charset="utf-8" />
-<title>${esc(title)}</title>
-<style>
-  body { font-family: Arial, "Helvetica Neue", sans-serif; color: #1e293b; margin: 32px; line-height: 1.5; }
-  h1 { font-size: 22px; border-bottom: 2px solid #6d28d9; padding-bottom: 8px; }
-  h2 { font-size: 19px; margin-top: 4px; color: #4c1d95; }
-  h3 { font-size: 15px; margin-top: 18px; color: #6d28d9; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; }
-  p { margin: 5px 0; font-size: 13px; }
-  .meta { color: #64748b; }
-  .msg { background: #f8fafc; border-radius: 6px; padding: 6px 10px; margin: 4px 0; }
-  ol, ul { font-size: 13px; }
-  .student { page-break-after: always; }
-  .student:last-child { page-break-after: auto; }
-  @media print { body { margin: 12mm; } }
-</style>
-</head>
-<body>
-  <h1>${esc(title)}</h1>
-  ${bodyHtml}
-</body>
-</html>`;
-}
-
-// Open the HTML in a new window and trigger the browser's print / Save-as-PDF
-function openPrint(html) {
-  const w = window.open("", "_blank");
-  if (!w) {
-    alert("החלון נחסם. אפשר חלונות קופצים (pop-ups) עבור האתר ונסה שוב.");
-    return;
-  }
-  w.document.write(html);
-  w.document.close();
-  w.focus();
-  // Give the new window a moment to render before printing
-  setTimeout(() => w.print(), 400);
-}
-
-// A safe, participant-specific Excel file name
-function excelFileName(s) {
-  return `participant-${s.studentNumber || s.studentId || "unknown"}.xlsx`;
-}
-
-// Build a participant's Excel workbook (overview + full chat transcript). Shared
-// by the single-file export and the "all participants" ZIP export.
-function buildStudentWorkbook(s, messages) {
-  const wb = XLSX.utils.book_new();
-
-  // 1) Overview: identity, group, status, progress, timestamps
-  const overview = [
-    ["שדה", "ערך"],
-    ["שם", s.studentName || ""],
-    ["ת״ז / קוד", s.studentNumber || ""],
-    ["מין", s.gender === "male" ? "זכר" : s.gender === "female" ? "נקבה" : ""],
-    ["קבוצה", s.group || ""],
-    ["סטטוס", s.status === "completed" ? "סיים" : "פעיל"],
-    ["שכבה נוכחית", s.currentLayer || ""],
-    ["התקדמות (%)", s.progress ?? ""],
-    ["רמזים בשימוש", s.hintsUsed ?? ""],
-    ["שערים שנפתחו", (s.gateEvents || []).length],
-    ["עודכן", s.updatedAt || ""],
-  ];
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(overview), "סקירה");
-
-  // 2) Full chat transcript — every message the participant exchanged with the
-  // chatbot, in order, with the stage (layer) each message belongs to and a
-  // timestamp. The "שלב" column shows when the student moved between stages.
-  const chatRows = [["דובר", "הודעה", "שלב", "זמן"]];
-  (messages || []).forEach((m) => {
-    chatRows.push([senderLabel(m.sender), m.text || "", layerLabel(m.layer), m.createdAt || ""]);
-  });
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(chatRows), "שיחה");
-
-  return wb;
-}
-
-function ExportData() {
+  It lists every registered student with their status and assigned group, and
+  lets the admin approve/assign each student to the Experimental or Control
+  group (or move them back to "waiting"). The list auto-refreshes so new
+  entrants and status changes appear without a manual reload.
+*/
+function AdminStudents() {
+  // Store the full list of students
   const [students, setStudents] = useState([]);
-  const [busy, setBusy] = useState(false);
 
+  // Track which session is being updated (to disable its buttons briefly)
+  const [busyId, setBusyId] = useState(null);
+
+  // A short-lived banner shown when a student has just finished the chat
+  const [notice, setNotice] = useState(null);
+
+  // Remember which sessions were already completed, so we only alert on NEW
+  // completions (null means the first load hasn't happened yet).
+  const knownCompletedRef = useRef(null);
+
+  // A friendly display name for a participant
+  const displayName = (s) =>
+    s.studentName?.trim() ? s.studentName : `משתתף ${s.studentId || "—"}`;
+
+  // Load all students from the backend and detect newly completed sessions
   const load = useCallback(async () => {
     try {
-      const data = await getDashboardData();
-      setStudents(Array.isArray(data) ? data : []);
-    } catch (e) {
-      console.error("export load failed", e);
+      const data = await getAllStudents();
+      const list = Array.isArray(data) ? data : [];
+      setStudents(list);
+
+      // Detect sessions that have just switched to "completed" since last poll
+      const completedIds = new Set(
+        list.filter((s) => s.status === "completed").map((s) => s.sessionId)
+      );
+
+      if (knownCompletedRef.current === null) {
+        // First load — just record the current state, do not alert
+        knownCompletedRef.current = completedIds;
+      } else {
+        const newlyDone = list.filter(
+          (s) => s.status === "completed" && !knownCompletedRef.current.has(s.sessionId)
+        );
+        if (newlyDone.length > 0) {
+          const names = newlyDone.map(displayName).join(", ");
+          setNotice(
+            `🔔 ${newlyDone.length === 1 ? "סטודנט סיים" : "סטודנטים סיימו"} את השיחה: ${names}`
+          );
+        }
+        knownCompletedRef.current = completedIds;
+      }
+    } catch (err) {
+      console.error("failed to load students:", err);
     }
   }, []);
 
+  // Poll the student list every 4 seconds so it stays current
   useEffect(() => {
     load();
+    const interval = setInterval(load, 4000);
+    return () => clearInterval(interval);
   }, [load]);
 
-  // Export one student's full record as a printable PDF
-  async function exportStudent(s) {
-    try {
-      setBusy(true);
-      let messages = [];
-      if (s.chatId) {
-        try {
-          messages = await getChatMessages(s.chatId);
-        } catch (e) {
-          console.error("messages fetch failed", e);
-        }
-      }
-      openPrint(
-        printablePage(
-          `דוח משתתף — ${s.studentName?.trim() ? s.studentName : "משתתף " + (s.studentNumber || "—")}`,
-          studentReportHtml(s, messages)
-        )
-      );
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  // Fetch a participant's chat transcript (read-only). Returns [] on failure.
-  async function fetchMessages(s) {
-    if (!s.chatId) return [];
-    try {
-      return await getChatMessages(s.chatId);
-    } catch (e) {
-      console.error("messages fetch failed", e);
-      return [];
-    }
-  }
-
-  // Export one participant's full record as a structured Excel (.xlsx) file.
-  // Reuses the same dashboard data + chat messages as the PDF export; it only
-  // READS data and never modifies or deletes anything.
-  async function exportStudentExcel(s) {
-    try {
-      setBusy(true);
-      const messages = await fetchMessages(s);
-      const wb = buildStudentWorkbook(s, messages);
-      // Download the file, clearly named for this participant
-      XLSX.writeFile(wb, excelFileName(s));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  // Export EVERY participant's Excel file at once, bundled into a single ZIP so
-  // the researcher gets all reports in one download (extract it into a folder).
-  async function exportAllExcel() {
-    if (students.length === 0) return;
-    try {
-      setBusy(true);
-      const zip = new JSZip();
-      const usedNames = new Set();
-
-      // Build one .xlsx per participant and add it to the archive
-      for (const s of students) {
-        const messages = await fetchMessages(s);
-        const wb = buildStudentWorkbook(s, messages);
-
-        // Write the workbook to bytes (no per-file download)
-        const bytes = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-
-        // Ensure a unique file name inside the ZIP
-        let name = excelFileName(s);
-        let i = 2;
-        while (usedNames.has(name)) {
-          name = excelFileName(s).replace(/\.xlsx$/, `-${i}.xlsx`);
-          i += 1;
-        }
-        usedNames.add(name);
-
-        zip.file(name, bytes);
-      }
-
-      // Generate the ZIP and trigger a single download
-      const blob = await zip.generateAsync({ type: "blob" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = "participants-excel.zip";
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  // Export every student's record as one printable PDF
-  async function exportAll() {
-    try {
-      setBusy(true);
-      const sections = await Promise.all(
-        students.map(async (s) => {
-          let messages = [];
-          if (s.chatId) {
-            try {
-              messages = await getChatMessages(s.chatId);
-            } catch (e) {
-              console.error("messages fetch failed", e);
-            }
-          }
-          return studentReportHtml(s, messages);
-        })
-      );
-      openPrint(printablePage("דוח כלל המשתתפים", sections.join("")));
-    } finally {
-      setBusy(false);
-    }
-  }
+  // Automatically dismiss the "student finished" banner after a few seconds
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(null), 12000);
+    return () => clearTimeout(timer);
+  }, [notice]);
 
   // Permanently delete ALL participants after a strong confirmation
   async function removeAll() {
@@ -291,96 +106,233 @@ function ExportData() {
       return;
     }
     try {
-      setBusy(true);
+      setBusyId("__all__");
       await deleteAllStudents();
       setStudents([]);
       await load();
-    } catch (e) {
-      console.error("failed to delete all", e);
+    } catch (err) {
+      console.error("failed to delete all:", err);
       load();
     } finally {
-      setBusy(false);
+      setBusyId(null);
     }
   }
 
-  // Permanently delete a single participant after confirmation
+  // Permanently delete a participant after confirmation, then refresh
   async function removeStudent(s) {
-    const label = s.studentName?.trim() ? s.studentName : `משתתף ${s.studentNumber || "—"}`;
-    if (!window.confirm(`למחוק לצמיתות את ${label} וכל הנתונים שלו? לא ניתן לבטל.`)) {
+    const name = s.studentName || "המשתתף";
+    if (!window.confirm(`למחוק לצמיתות את ${name} (ת״ז ${s.studentId || "—"}) וכל הנתונים שלו? לא ניתן לבטל.`)) {
       return;
     }
     try {
-      setBusy(true);
+      setBusyId(s.sessionId);
       setStudents((prev) => prev.filter((x) => x.sessionId !== s.sessionId));
       await deleteStudent(s.sessionId);
       await load();
-    } catch (e) {
-      console.error("failed to delete student", e);
+    } catch (err) {
+      console.error("failed to delete student:", err);
       load();
     } finally {
-      setBusy(false);
+      setBusyId(null);
     }
   }
 
+  // Assign a student to a group (or back to Pending), then refresh
+  async function setGroup(sessionId, group) {
+    try {
+      setBusyId(sessionId);
+      // Optimistically update the row for a snappy UI
+      setStudents((prev) =>
+        prev.map((s) => (s.sessionId === sessionId ? { ...s, group } : s))
+      );
+      await assignSessionGroup(sessionId, group);
+      await load();
+    } catch (err) {
+      console.error("failed to set group:", err);
+      // Reload to recover the correct state if the request failed
+      load();
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  // Manually mark a participant's session as completed (e.g., if they closed the
+  // browser before the timer ended, so it never auto-completed).
+  async function markComplete(s) {
+    try {
+      setBusyId(s.sessionId);
+      // Optimistically show it as completed for a snappy UI
+      setStudents((prev) =>
+        prev.map((x) => (x.sessionId === s.sessionId ? { ...x, status: "completed" } : x))
+      );
+      await completeSession(s.sessionId);
+      await load();
+    } catch (err) {
+      console.error("failed to complete session:", err);
+      load();
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  // Small counts for the summary line
+  const counts = {
+    pending: students.filter((s) => s.group === "Pending").length,
+    experimental: students.filter((s) => s.group === "Experimental Group").length,
+    control: students.filter((s) => s.group === "Control Group").length,
+    completed: students.filter((s) => s.status === "completed").length,
+  };
+
+  // A single action button (highlighted when it is the current group)
+  function ActionButton({ student, group, label, activeClass }) {
+    const isActive = student.group === group;
+    return (
+      <button
+        onClick={() => setGroup(student.sessionId, group)}
+        disabled={busyId === student.sessionId || isActive}
+        className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all disabled:opacity-60 ${
+          isActive
+            ? activeClass
+            : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10"
+        }`}
+      >
+        {label}
+      </button>
+    );
+  }
+
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/5 dark:bg-[#1e2333]" dir="rtl">
+    <div
+      className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/5 dark:bg-[#1e2333]"
+      dir="rtl"
+    >
+      {/* Title and summary */}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-lg font-bold text-slate-900 dark:text-white">ייצוא דוחות</h3>
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={exportAll}
-            disabled={busy || students.length === 0}
-            className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white transition-all hover:bg-emerald-700 disabled:opacity-50"
-          >
-            ייצא PDF של כל המשתתפים
-          </button>
-          <button
-            onClick={exportAllExcel}
-            disabled={busy || students.length === 0}
-            className="rounded-lg bg-green-700 px-4 py-2 text-sm font-bold text-white transition-all hover:bg-green-800 disabled:opacity-50"
-          >
-            ייצא Excel של כל המשתתפים (ZIP)
-          </button>
+        <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+          ניהול משתתפים
+        </h3>
+        <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
+          <span className="rounded-full bg-yellow-100 px-3 py-0.5 text-yellow-800 dark:bg-yellow-500/20 dark:text-yellow-200">
+            ממתינים: {counts.pending}
+          </span>
+          <span className="rounded-full bg-purple-100 px-3 py-0.5 text-purple-700 dark:bg-purple-500/20 dark:text-purple-300">
+            ניסוי: {counts.experimental}
+          </span>
+          <span className="rounded-full bg-slate-200 px-3 py-0.5 text-slate-700 dark:bg-slate-500/20 dark:text-slate-300">
+            ביקורת: {counts.control}
+          </span>
+          <span className="rounded-full bg-green-100 px-3 py-0.5 text-green-800 dark:bg-green-500/20 dark:text-green-200">
+            הושלמו: {counts.completed}
+          </span>
           <button
             onClick={removeAll}
-            disabled={busy || students.length === 0}
-            className="rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white transition-all hover:bg-red-700 disabled:opacity-50"
+            disabled={busyId === "__all__" || students.length === 0}
+            className="rounded-lg bg-red-600 px-3 py-1 font-bold text-white transition-all hover:bg-red-700 disabled:opacity-50"
           >
             מחק הכל
           </button>
         </div>
       </div>
 
-      <p className="mb-3 text-xs text-slate-500 dark:text-gray-400">
-        PDF: לחיצה פותחת חלון הדפסה — בחר/י "שמור כ-PDF". &nbsp; Excel של כל המשתתפים יורד כקובץ ZIP אחד — חלץ/י אותו לתיקייה כדי לקבל קובץ לכל משתתף.
-      </p>
+      {/* Notification: a student has just finished the chat */}
+      {notice && (
+        <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-green-300 bg-green-50 px-4 py-2 text-sm font-semibold text-green-800 dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-200">
+          <span>{notice}</span>
+          <button
+            onClick={() => setNotice(null)}
+            className="rounded-md px-2 py-0.5 text-green-700 hover:bg-green-100 dark:text-green-300 dark:hover:bg-green-500/20"
+            aria-label="סגור התראה"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
+      {/* Empty state */}
       {students.length === 0 ? (
-        <p className="text-sm text-slate-500 dark:text-gray-400">אין נתונים עדיין.</p>
+        <p className="text-sm text-slate-500 dark:text-gray-400">
+          עדיין אין משתתפים. כשסטודנט ייכנס, הוא יופיע כאן.
+        </p>
       ) : (
-        <ul className="space-y-2">
+        <ul className="space-y-3">
           {students.map((s) => (
             <li
-              key={s.progressId || s.studentId}
-              className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-white/5 dark:bg-[#2a2f42]"
+              key={s.sessionId}
+              className={`flex flex-col gap-3 rounded-xl border p-3 sm:flex-row sm:items-center sm:justify-between ${
+                s.status === "completed"
+                  ? "border-green-300 bg-green-50 dark:border-green-500/30 dark:bg-green-500/5"
+                  : s.group === "Pending"
+                  ? "border-yellow-300 bg-yellow-50 dark:border-yellow-500/30 dark:bg-yellow-500/5"
+                  : "border-slate-200 bg-slate-50 dark:border-white/5 dark:bg-[#2a2f42]"
+              }`}
             >
-              <span className="text-sm text-slate-800 dark:text-slate-200">
-                {s.studentName?.trim() ? s.studentName : `משתתף ${s.studentNumber || "—"}`} · {s.group}
-              </span>
-              <div className="flex gap-2">
+              {/* Identity + status + current group */}
+              <div className="flex flex-col gap-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-semibold text-slate-900 dark:text-white">
+                    {s.studentName?.trim() ? s.studentName : `משתתף ${s.studentId || "—"}`}
+                  </span>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${GROUP_BADGE[s.group]}`}
+                  >
+                    {GROUP_LABEL[s.group] || s.group}
+                  </span>
+                  {/* Completion status badge */}
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                      s.status === "completed"
+                        ? "bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-200"
+                        : "bg-slate-200 text-slate-600 dark:bg-white/5 dark:text-slate-300"
+                    }`}
+                  >
+                    {s.status === "completed" ? "✓ הושלם" : "בתהליך"}
+                  </span>
+                </div>
+                <span className="text-xs text-slate-500 dark:text-gray-400">
+                  ת״ז: {s.studentId || "—"}
+                </span>
+              </div>
+
+              {/* Group assignment (permanent). Only shown while Pending; once a
+                  group is assigned it is locked and cannot be changed or reset. */}
+              <div className="flex flex-wrap items-center gap-2">
+                {s.group === "Pending" ? (
+                  <>
+                    <ActionButton
+                      student={s}
+                      group="Experimental Group"
+                      label="ניסוי"
+                      activeClass="bg-purple-600 text-white"
+                    />
+                    <ActionButton
+                      student={s}
+                      group="Control Group"
+                      label="ביקורת"
+                      activeClass="bg-slate-600 text-white"
+                    />
+                  </>
+                ) : (
+                  <span className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-500 dark:bg-white/5 dark:text-slate-400">
+                    🔒 נעול
+                  </span>
+                )}
+                {/* Manual "mark as completed" — useful if the student closed the
+                    browser before the timer ended and it never auto-completed */}
+                {s.status !== "completed" && (
+                  <button
+                    onClick={() => markComplete(s)}
+                    disabled={busyId === s.sessionId}
+                    className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-bold text-white transition-all hover:bg-green-700 disabled:opacity-60"
+                  >
+                    סמן כהושלם
+                  </button>
+                )}
                 <button
-                  onClick={() => exportStudent(s)}
-                  disabled={busy}
-                  className="rounded-lg bg-slate-600 px-3 py-1.5 text-xs font-bold text-white transition-all hover:bg-slate-700 disabled:opacity-50"
+                  onClick={() => removeStudent(s)}
+                  disabled={busyId === s.sessionId}
+                  className="rounded-lg bg-red-100 px-3 py-1.5 text-xs font-bold text-red-700 transition-all hover:bg-red-200 disabled:opacity-60 dark:bg-red-500/15 dark:text-red-300 dark:hover:bg-red-500/25"
                 >
-                  הורד PDF
-                </button>
-                <button
-                  onClick={() => exportStudentExcel(s)}
-                  disabled={busy}
-                  className="rounded-lg bg-green-700 px-3 py-1.5 text-xs font-bold text-white transition-all hover:bg-green-800 disabled:opacity-50"
-                >
-                  הורד Excel
+                  מחק
                 </button>
               </div>
             </li>
@@ -391,4 +343,5 @@ function ExportData() {
   );
 }
 
-export default ExportData;
+// Export the component for use in the dashboard
+export default AdminStudents;
