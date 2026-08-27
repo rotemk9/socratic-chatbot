@@ -49,6 +49,18 @@ async function generateSocraticResponse({
       .map((event, index) => `${index + 1}. ${event}`)
       .join("\n");
 
+    // Count how many questions the bot has already asked within the CURRENT
+    // stage. If the student is stuck on the same stage after several questions,
+    // the prompt below instructs the bot to give a more supportive, leading
+    // question that helps them cross to the next stage.
+    const questionsInCurrentLayer = (chatHistory || []).filter(
+      (msg) => msg.sender === "bot" && msg.layer === currentLayer
+    ).length;
+
+    // The student is considered "stuck" once they have received about four
+    // questions in the current stage without advancing.
+    const isStuckInLayer = questionsInCurrentLayer >= 4;
+
     // Convert the ten most recent messages into text for the AI prompt
     const historyText = chatHistory
       .slice(-10)
@@ -122,12 +134,20 @@ ${revealedEventsText}
 4. הערכה: פשרות, נקודות מינוף והשלכות בלתי-מכוונות.
 העפל שלב רק כשהמשתתף הראה שתפס את הרמה הנוכחית.
 
+תמיכה כשהמשתתף מתקשה לעבור שלב:
+כבר נשאלו ${questionsInCurrentLayer} שאלות בשלב הנוכחי (${currentLayer}).
+${isStuckInLayer
+  ? "המשתתף מתקשה להתקדם בשלב זה. עבור לשאלה תומכת ומכוונת יותר: פרק את הרעיון לצעד קטן וקונקרטי, תן דוגמה מכוונת או רמז עדין בתוך השאלה, והובל אותו בעדינות אל התובנה החסרה כדי שיוכל לעבור לשלב הבא — אך עדיין בלי לתת לו את התשובה המלאה."
+  : "המשך בשאלות סוקרטיות פתוחות רגילות."}
+
 כללי התגובה שלך:
 - השב באותה שפה שבה כתב המשתתף.
 - אל תיתן פתרונות ואל תפתור עבורו.
 - שאל שאלה אחת בלבד בכל תגובה — קצרה, פתוחה ומעמיקה.
 - התאם את השאלה הבאה לתשובה האחרונה; אל תשאל שאלות גנריות.
 - אל תחזור על שאלות שכבר נשאלו.
+- ניסוח מדורג לפי רמת המשתתף: בתחילת השיחה (שלב "הקשר רחב" ובאחוזי התקדמות נמוכים) נסח שאלות פשוטות, קצרות וברורות בשפה יומיומית, בלי מונחים מקצועיים כבדים, כדי שהמשתתף יבין בקלות. ככל שהוא מתקדם בשלבים ובאחוזי ההתקדמות, העלה בהדרגה את רמת המורכבות והשתמש בשפה מקצועית ומעמיקה יותר.
+- הקפד על עברית תקנית, ניסוח בהיר וזורם, ובדוק שאין שגיאות כתיב או ניסוח בכל שאלה שאתה כותב.
 
 אל תחזור על שאלות קודמות שכבר שאלת:
 ${lastBotQuestions?.join("\n") || "none"}
