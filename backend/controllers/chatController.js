@@ -248,9 +248,50 @@ async function getHint(req, res) {
   }
 }
 
+// Save a timed scenario-event message (revealed to the student during the
+// session) so it becomes a permanent part of the conversation and appears in
+// the exports (PDF and Excel) exactly like every other message.
+async function saveEventMessage(req, res) {
+  try {
+    // Extract the chat ID from the URL parameters
+    const { chatId } = req.params;
+
+    // Extract the session ID, student ID, and event text from the request body
+    const { sessionId, studentId, text } = req.body;
+
+    // Find the related learning session
+    const session = await Session.findById(sessionId);
+
+    // Return an error if the session does not exist
+    if (!session) {
+      return res.status(404).json({ message: "Session not found" });
+    }
+
+    // Store the event as a bot message so it is part of the saved transcript
+    const eventMessage = await Message.create({
+      chatId,
+      sessionId,
+      studentId,
+      sender: "bot",
+      text,
+      layer: session.currentLayer,
+    });
+
+    // Return the saved message
+    res.json({ eventMessage });
+  } catch (error) {
+    // Return a server error if the event message cannot be saved
+    res.status(500).json({
+      message: "Failed to save event message",
+      error: error.message,
+    });
+  }
+}
+
 // Export the controller functions so they can be used in the chat routes
 module.exports = {
   getChatMessages,
   sendMessage,
   getHint,
+  saveEventMessage,
 };
