@@ -33,7 +33,7 @@ const REVEAL_SCHEDULE = [
 // Display and manage the main chat interface
 function ChatBox() {
   // Retrieve the current session data and session update functions
-  const { sessionInfo, updateAfterMessage, updateSessionStatus } = useSession();
+  const { sessionInfo, updateAfterMessage, finishSession } = useSession();
 
   // Keep the latest valid session information even during temporary re-renders
   const safeSessionRef = useRef(sessionInfo);
@@ -258,11 +258,12 @@ function ChatBox() {
     }, 8000);
   }
 
-  // Mark the session as completed when the timer reaches zero
+  // Mark the session as completed when the timer reaches zero. This both
+  // switches the UI to the end screen and persists the completion to the
+  // database (so the admin panel and exports show the student as finished).
   function handleTimeUp() {
-    // Make sure the update function exists before calling it
-    if (updateSessionStatus) {
-      updateSessionStatus("completed");
+    if (finishSession) {
+      finishSession();
     }
   }
 
