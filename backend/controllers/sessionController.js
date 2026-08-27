@@ -289,6 +289,9 @@ function formatSessionResponse(user, session) {
     // Student's email address
     email: user.email,
 
+    // Student's gender (used for gendered Hebrew phrasing in the chat)
+    gender: user.gender,
+
     // Database ID of the session
     sessionId: session._id,
 
