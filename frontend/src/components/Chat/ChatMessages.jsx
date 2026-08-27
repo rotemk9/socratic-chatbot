@@ -5,7 +5,13 @@ import { useLayoutEffect, useRef } from "react";
 import ChatMessage from "./ChatMessage";
 
 // Display the story card, chat messages, greeting, and typing indicator
-function ChatMessages({ messages, isTyping }) {
+function ChatMessages({ messages, isTyping, gender }) {
+  // Build the opening greeting in the participant's grammatical gender
+  const greeting =
+    gender === "female"
+      ? "שלום! תארי כיצד את מבינה מה מתרחש בשדה התעופה בבוקר הזה, ומה לדעתך עשוי לקרות בהמשך."
+      : "שלום! תאר כיצד אתה מבין מה מתרחש בשדה התעופה בבוקר הזה, ומה לדעתך עשוי לקרות בהמשך.";
+
   // Store a reference to the element at the bottom of the chat
   const messagesEndRef = useRef(null);
 
@@ -63,9 +69,9 @@ function ChatMessages({ messages, isTyping }) {
                 SystemThinker AI
               </p>
 
-              {/* Display the initial Socratic question */}
+              {/* Display the initial Socratic question in the correct gender */}
               <p className="text-sm sm:text-[15px] leading-relaxed text-slate-800 dark:text-slate-200" dir="rtl">
-                שלום! תאר כיצד אתה מבין מה מתרחש בשדה התעופה בבוקר הזה, ומה לדעתך עשוי לקרות בהמשך.
+                {greeting}
               </p>
             </div>
           </div>
