@@ -220,6 +220,7 @@ function ExportData() {
         ["שדה", "ערך"],
         ["שם", s.studentName || ""],
         ["ת״ז / קוד", s.studentNumber || ""],
+        ["מין", s.gender === "male" ? "זכר" : s.gender === "female" ? "נקבה" : ""],
         ["קבוצה", s.group || ""],
         ["סטטוס", s.status === "completed" ? "סיים" : "פעיל"],
         ["שכבה נוכחית", s.currentLayer || ""],
