@@ -54,8 +54,9 @@ async function sendMessage(req, res) {
     // airport events currently revealed to the student from the request body.
     const { sessionId, studentId, text, revealedCount } = req.body;
 
-    // Find the related learning session
-    const session = await Session.findById(sessionId);
+    // Find the related learning session, including the participant record so we
+    // know their gender (used for gendered Hebrew phrasing).
+    const session = await Session.findById(sessionId).populate("studentId");
 
     // Return an error if the session does not exist
     if (!session) {
@@ -63,6 +64,9 @@ async function sendMessage(req, res) {
         message: "Session not found",
       });
     }
+
+    // The participant's gender, used so the bot addresses them correctly
+    const gender = session.studentId?.gender;
 
     // Save the student's message in the database
     const userMessage = await Message.create({
@@ -116,6 +120,8 @@ async function sendMessage(req, res) {
       lastBotQuestions: session.lastBotQuestions,
       // Only let the bot reference the events the student has already seen
       revealedCount: revealedCount || 1,
+      // Address the participant in their grammatical gender
+      gender,
     });
 
     // Save the generated AI response as a new message
@@ -176,8 +182,9 @@ async function getHint(req, res) {
     // Extract the session ID and student ID from the request body
     const { sessionId, studentId } = req.body;
 
-    // Find the related learning session
-    const session = await Session.findById(sessionId);
+    // Find the related learning session, including the participant record so we
+    // know their gender (used for gendered Hebrew phrasing).
+    const session = await Session.findById(sessionId).populate("studentId");
 
     // Return an error if the session does not exist
     if (!session) {
@@ -198,6 +205,8 @@ async function getHint(req, res) {
       currentLayer: session.currentLayer,
       hintsUsed: session.hintsUsed,
       unlockedGates: session.unlockedGates,
+      // Address the participant in their grammatical gender
+      gender: session.studentId?.gender,
     });
 
     // Increase the number of hints used in the session
