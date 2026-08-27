@@ -274,6 +274,43 @@ async function increaseHint(req, res) {
   }
 }
 
+// Mark a session as completed (e.g., when the session timer reaches zero).
+// This persists the "completed" status to the database so it also shows up in
+// the admin panel and the Excel/PDF exports — not only in the participant's UI.
+async function completeSession(req, res) {
+  try {
+    // Extract the session ID from the request body
+    const { sessionId } = req.body;
+
+    // Find the session together with its connected student
+    const session = await Session.findById(sessionId).populate("studentId");
+
+    // Return an error if the session does not exist
+    if (!session) {
+      return res.status(404).json({ message: "Session not found" });
+    }
+
+    // Persist the completed status on the session
+    session.status = "completed";
+    await session.save();
+
+    // Keep the student's progress record in sync
+    await StudentProgress.findOneAndUpdate(
+      { sessionId: session._id },
+      { status: "completed" }
+    );
+
+    // Return the updated session information
+    res.json(formatSessionResponse(session.studentId, session));
+  } catch (error) {
+    // Return a server error if the session cannot be completed
+    res.status(500).json({
+      message: "Failed to complete session",
+      error: error.message,
+    });
+  }
+}
+
 // Format the user and session data into one consistent response object
 function formatSessionResponse(user, session) {
   return {
@@ -444,4 +481,5 @@ module.exports = {
   assignGroup,
   deleteStudent,
   deleteAllStudents,
+  completeSession,
 };
