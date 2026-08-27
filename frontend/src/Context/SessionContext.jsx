@@ -6,6 +6,7 @@ import {
   startSession,
   getSessionById,
   increaseHintCounter,
+  completeSession,
 } from "../services/sessionService";
 
 // Create a shared context for session information and session actions
@@ -84,6 +85,25 @@ export function SessionProvider({ children }) {
     });
   }
 
+  // Mark the session as completed BOTH locally (to switch the UI to the end
+  // screen) and on the backend (so the admin panel and the Excel/PDF exports
+  // show the participant as finished, not active).
+  async function finishSession() {
+    // Immediately switch the UI to the completed state
+    updateSessionStatus("completed");
+
+    // Persist the completion to the database (best-effort)
+    const id = sessionInfo?.sessionId;
+    if (!id) return;
+    try {
+      const data = await completeSession(id);
+      setSessionInfo(data);
+      setDashboardVersion((prev) => prev + 1);
+    } catch (error) {
+      console.error("Failed to persist session completion", error);
+    }
+  }
+
   // Remove the active session and reset the dashboard version
   function clearSession() {
     setSessionInfo(null);
@@ -101,6 +121,7 @@ export function SessionProvider({ children }) {
         updateAfterMessage,
         refreshDashboard,
         updateSessionStatus, // Don't forget to expose it here!
+        finishSession,
         clearSession,
       }}
     >
