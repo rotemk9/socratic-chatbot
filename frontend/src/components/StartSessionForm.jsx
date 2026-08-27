@@ -13,7 +13,7 @@ function StartSessionForm({ onBack }) {
   const [formData, setFormData] = useState({
     name: "",
     studentId: "",
-    email: "",
+    gender: "",
   });
 
   // Store an error message if the session cannot be started
@@ -34,6 +34,18 @@ function StartSessionForm({ onBack }) {
 
     // Clear any previous error message
     setError("");
+
+    // Require a full name before starting the session
+    if (!formData.name.trim()) {
+      setError("יש להזין שם מלא");
+      return;
+    }
+
+    // Require the participant to choose a gender
+    if (!formData.gender) {
+      setError("יש לבחור מין");
+      return;
+    }
 
     try {
       // Send the student information through the session context. The backend
@@ -57,51 +69,68 @@ function StartSessionForm({ onBack }) {
           <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
             SystemThinker AI
           </h2>
-          <p className="mt-2 text-sm text-slate-500 dark:text-gray-400">
-            Enter your details to begin the session
+          <p className="mt-2 text-sm text-slate-500 dark:text-gray-400" dir="rtl">
+            מלא את פרטיך כדי להתחיל בשיחה
           </p>
         </div>
 
         {/* Submit the student details through handleSubmit.
             autoComplete="off" stops the browser from suggesting previously typed
             values (that dropdown is per-device browser history, not app data). */}
-        <form onSubmit={handleSubmit} className="space-y-5" autoComplete="off">
-          {/* Student ID input */}
-          <div>
-            <input
-              name="studentId"
-              autoComplete="off"
-              value={formData.studentId}
-              onChange={handleChange}
-              placeholder="Student ID"
-              className="w-full rounded-lg border border-slate-200 bg-slate-50 p-3.5 text-slate-900 placeholder-slate-400 transition-all focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-purple-500 dark:border-transparent dark:bg-[#2a2f42]/80 dark:text-white dark:placeholder-gray-400 dark:focus:bg-[#2a2f42]"
-              required
-            />
-          </div>
-
-          {/* Student full-name input */}
+        <form onSubmit={handleSubmit} className="space-y-5" autoComplete="off" dir="rtl">
+          {/* Student full-name input (required) */}
           <div>
             <input
               name="name"
               autoComplete="off"
               value={formData.name}
               onChange={handleChange}
-              placeholder="Full name"
-              className="w-full rounded-lg border border-slate-200 bg-slate-50 p-3.5 text-slate-900 placeholder-slate-400 transition-all focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-purple-500 dark:border-transparent dark:bg-[#2a2f42]/80 dark:text-white dark:placeholder-gray-400 dark:focus:bg-[#2a2f42]"
+              placeholder="שם מלא"
+              className="w-full rounded-lg border border-slate-200 bg-slate-50 p-3.5 text-right text-slate-900 placeholder-slate-400 transition-all focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-purple-500 dark:border-transparent dark:bg-[#2a2f42]/80 dark:text-white dark:placeholder-gray-400 dark:focus:bg-[#2a2f42]"
               required
             />
           </div>
 
-          {/* Optional student email input */}
+          {/* Optional student ID input */}
           <div>
             <input
-              name="email"
+              name="studentId"
               autoComplete="off"
-              value={formData.email}
+              value={formData.studentId}
               onChange={handleChange}
-              placeholder="אימייל (לא חובה)"
-              className="w-full rounded-lg border border-slate-200 bg-slate-50 p-3.5 text-slate-900 placeholder-slate-400 transition-all focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-purple-500 dark:border-transparent dark:bg-[#2a2f42]/80 dark:text-white dark:placeholder-gray-400 dark:focus:bg-[#2a2f42]"
+              placeholder="תעודת זהות (לא חובה)"
+              className="w-full rounded-lg border border-slate-200 bg-slate-50 p-3.5 text-right text-slate-900 placeholder-slate-400 transition-all focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-purple-500 dark:border-transparent dark:bg-[#2a2f42]/80 dark:text-white dark:placeholder-gray-400 dark:focus:bg-[#2a2f42]"
             />
+          </div>
+
+          {/* Gender selection (required) — only זכר / נקבה */}
+          <div>
+            <p className="mb-2 text-sm font-medium text-slate-600 dark:text-slate-300">מין</p>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { value: "male", label: "זכר" },
+                { value: "female", label: "נקבה" },
+              ].map((option) => (
+                <label
+                  key={option.value}
+                  className={`flex cursor-pointer items-center justify-center rounded-lg border p-3 text-sm font-bold transition-all ${
+                    formData.gender === option.value
+                      ? "border-purple-500 bg-purple-50 text-purple-700 dark:bg-purple-500/10 dark:text-purple-300"
+                      : "border-slate-200 bg-slate-50 text-slate-600 hover:border-purple-300 dark:border-transparent dark:bg-[#2a2f42]/80 dark:text-slate-300"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="gender"
+                    value={option.value}
+                    checked={formData.gender === option.value}
+                    onChange={handleChange}
+                    className="sr-only"
+                  />
+                  {option.label}
+                </label>
+              ))}
+            </div>
           </div>
 
           {/* Display an error message when session creation fails */}
