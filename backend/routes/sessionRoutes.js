@@ -11,6 +11,7 @@ const {
   assignGroup,
   deleteStudent,
   deleteAllStudents,
+  completeSession,
 } = require("../controllers/sessionController");
 
 // Create a new Express router
@@ -39,6 +40,9 @@ router.post("/delete", deleteStudent);
 
 // Permanently delete ALL participants (reset before a study)
 router.post("/delete-all", deleteAllStudents);
+
+// Mark a session as completed (called when the session timer reaches zero)
+router.post("/complete", completeSession);
 
 // Retrieve a specific session using its session ID
 router.get("/:sessionId", getSession);
