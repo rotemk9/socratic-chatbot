@@ -44,6 +44,18 @@ const userSchema = new mongoose.Schema(
       default: "",
     },
 
+    // Store the participant's gender, collected at login for the research data.
+    gender: {
+      // The gender must be a string
+      type: String,
+
+      // Only male or female are allowed (no other option)
+      enum: ["male", "female", ""],
+
+      // Use an empty string when no gender is provided
+      default: "",
+    },
+
     // Store the user's role in the system
     role: {
   // The role must be a string
