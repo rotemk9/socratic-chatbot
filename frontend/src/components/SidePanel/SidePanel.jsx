@@ -3,6 +3,7 @@ import { useSession } from "../../Context/SessionContext";
 
 // Import the presentational components displayed inside the side panel
 import SessionInfo from "./SessionInfo";
+import StagesPanel from "./StagesPanel";
 import InfoCard from "./InfoCard";
 
 /*
@@ -58,6 +59,9 @@ function SidePanel() {
         onTimeUp={handleTimeUp}
         onReminder={handleTimerReminder}
       />
+
+      {/* Show the guidance-strategy roadmap and highlight the current stage */}
+      <StagesPanel currentLayer={sessionInfo.currentLayer} />
     </aside>
   );
 }
