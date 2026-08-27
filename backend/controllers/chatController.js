@@ -50,8 +50,9 @@ async function sendMessage(req, res) {
     // Extract the chat ID from the URL parameters
     const { chatId } = req.params;
 
-    // Extract the session ID, student ID, and message text from the request body
-    const { sessionId, studentId, text } = req.body;
+    // Extract the session ID, student ID, message text, and the number of
+    // airport events currently revealed to the student from the request body.
+    const { sessionId, studentId, text, revealedCount } = req.body;
 
     // Find the related learning session
     const session = await Session.findById(sessionId);
@@ -113,6 +114,8 @@ async function sendMessage(req, res) {
       progress: progressDoc?.progress || 0,
       hintsUsed: session.hintsUsed,
       lastBotQuestions: session.lastBotQuestions,
+      // Only let the bot reference the events the student has already seen
+      revealedCount: revealedCount || 1,
     });
 
     // Save the generated AI response as a new message
