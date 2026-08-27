@@ -35,8 +35,10 @@ function ChatMessage({ message }) {
           {isUser ? "You" : "SystemThinker AI"}
         </p>
 
-        {/* Display the message text */}
-        <p className="text-sm sm:text-[15px] leading-relaxed tracking-wide">
+        {/* Display the message text. dir="auto" lets the browser detect the
+            language and align punctuation correctly (Hebrew right-to-left,
+            English left-to-right), so a trailing "?" sits at the right place. */}
+        <p className="text-sm sm:text-[15px] leading-relaxed tracking-wide whitespace-pre-wrap" dir="auto">
           {message.text}
         </p>
       </div>
