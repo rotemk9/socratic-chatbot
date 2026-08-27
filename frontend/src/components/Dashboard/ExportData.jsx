@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import * as XLSX from "xlsx";
+import JSZip from "jszip";
 import { getDashboardData } from "../../services/dashboardService";
 import { getChatMessages } from "../../services/chatService";
 import { deleteStudent, deleteAllStudents } from "../../services/sessionService";
@@ -112,6 +113,44 @@ function openPrint(html) {
   setTimeout(() => w.print(), 400);
 }
 
+// A safe, participant-specific Excel file name
+function excelFileName(s) {
+  return `participant-${s.studentNumber || s.studentId || "unknown"}.xlsx`;
+}
+
+// Build a participant's Excel workbook (overview + full chat transcript). Shared
+// by the single-file export and the "all participants" ZIP export.
+function buildStudentWorkbook(s, messages) {
+  const wb = XLSX.utils.book_new();
+
+  // 1) Overview: identity, group, status, progress, timestamps
+  const overview = [
+    ["שדה", "ערך"],
+    ["שם", s.studentName || ""],
+    ["ת״ז / קוד", s.studentNumber || ""],
+    ["מין", s.gender === "male" ? "זכר" : s.gender === "female" ? "נקבה" : ""],
+    ["קבוצה", s.group || ""],
+    ["סטטוס", s.status === "completed" ? "סיים" : "פעיל"],
+    ["שכבה נוכחית", s.currentLayer || ""],
+    ["התקדמות (%)", s.progress ?? ""],
+    ["רמזים בשימוש", s.hintsUsed ?? ""],
+    ["שערים שנפתחו", (s.gateEvents || []).length],
+    ["עודכן", s.updatedAt || ""],
+  ];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(overview), "סקירה");
+
+  // 2) Full chat transcript — every message the participant exchanged with the
+  // chatbot, in order, with the stage (layer) each message belongs to and a
+  // timestamp. The "שלב" column shows when the student moved between stages.
+  const chatRows = [["דובר", "הודעה", "שלב", "זמן"]];
+  (messages || []).forEach((m) => {
+    chatRows.push([senderLabel(m.sender), m.text || "", layerLabel(m.layer), m.createdAt || ""]);
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(chatRows), "שיחה");
+
+  return wb;
+}
+
 function ExportData() {
   const [students, setStudents] = useState([]);
   const [busy, setBusy] = useState(false);
@@ -152,58 +191,71 @@ function ExportData() {
     }
   }
 
+  // Fetch a participant's chat transcript (read-only). Returns [] on failure.
+  async function fetchMessages(s) {
+    if (!s.chatId) return [];
+    try {
+      return await getChatMessages(s.chatId);
+    } catch (e) {
+      console.error("messages fetch failed", e);
+      return [];
+    }
+  }
+
   // Export one participant's full record as a structured Excel (.xlsx) file.
   // Reuses the same dashboard data + chat messages as the PDF export; it only
   // READS data and never modifies or deletes anything.
   async function exportStudentExcel(s) {
     try {
       setBusy(true);
+      const messages = await fetchMessages(s);
+      const wb = buildStudentWorkbook(s, messages);
+      // Download the file, clearly named for this participant
+      XLSX.writeFile(wb, excelFileName(s));
+    } finally {
+      setBusy(false);
+    }
+  }
 
-      // Fetch the participant's chat transcript (read-only)
-      let messages = [];
-      if (s.chatId) {
-        try {
-          messages = await getChatMessages(s.chatId);
-        } catch (e) {
-          console.error("messages fetch failed", e);
+  // Export EVERY participant's Excel file at once, bundled into a single ZIP so
+  // the researcher gets all reports in one download (extract it into a folder).
+  async function exportAllExcel() {
+    if (students.length === 0) return;
+    try {
+      setBusy(true);
+      const zip = new JSZip();
+      const usedNames = new Set();
+
+      // Build one .xlsx per participant and add it to the archive
+      for (const s of students) {
+        const messages = await fetchMessages(s);
+        const wb = buildStudentWorkbook(s, messages);
+
+        // Write the workbook to bytes (no per-file download)
+        const bytes = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+
+        // Ensure a unique file name inside the ZIP
+        let name = excelFileName(s);
+        let i = 2;
+        while (usedNames.has(name)) {
+          name = excelFileName(s).replace(/\.xlsx$/, `-${i}.xlsx`);
+          i += 1;
         }
+        usedNames.add(name);
+
+        zip.file(name, bytes);
       }
 
-      const displayName = s.studentName?.trim()
-        ? s.studentName
-        : `משתתף ${s.studentNumber || "—"}`;
-
-      // Build a workbook with a sheet per data category
-      const wb = XLSX.utils.book_new();
-
-      // 1) Overview: identity, group, status, progress, timestamps
-      const overview = [
-        ["שדה", "ערך"],
-        ["שם", s.studentName || ""],
-        ["ת״ז / קוד", s.studentNumber || ""],
-        ["מין", s.gender === "male" ? "זכר" : s.gender === "female" ? "נקבה" : ""],
-        ["קבוצה", s.group || ""],
-        ["סטטוס", s.status === "completed" ? "סיים" : "פעיל"],
-        ["שכבה נוכחית", s.currentLayer || ""],
-        ["התקדמות (%)", s.progress ?? ""],
-        ["רמזים בשימוש", s.hintsUsed ?? ""],
-        ["שערים שנפתחו", (s.gateEvents || []).length],
-        ["עודכן", s.updatedAt || ""],
-      ];
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(overview), "סקירה");
-
-      // 2) Full chat transcript — every message the participant exchanged with
-      // the chatbot, in order, with the stage (layer) each message belongs to
-      // and a timestamp. The "שלב" column lets you see when the student moved
-      // between the systems-thinking stages during the conversation.
-      const chatRows = [["דובר", "הודעה", "שלב", "זמן"]];
-      (messages || []).forEach((m) => {
-        chatRows.push([senderLabel(m.sender), m.text || "", layerLabel(m.layer), m.createdAt || ""]);
-      });
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(chatRows), "שיחה");
-
-      // Download the file, clearly named for this participant
-      XLSX.writeFile(wb, `participant-${s.studentNumber || s.studentId || "unknown"}.xlsx`);
+      // Generate the ZIP and trigger a single download
+      const blob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "participants-excel.zip";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
     } finally {
       setBusy(false);
     }
@@ -273,14 +325,21 @@ function ExportData() {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/5 dark:bg-[#1e2333]" dir="rtl">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-lg font-bold text-slate-900 dark:text-white">ייצוא דוחות (PDF)</h3>
+        <h3 className="text-lg font-bold text-slate-900 dark:text-white">ייצוא דוחות</h3>
         <div className="flex flex-wrap gap-2">
           <button
             onClick={exportAll}
             disabled={busy || students.length === 0}
             className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white transition-all hover:bg-emerald-700 disabled:opacity-50"
           >
-            ייצא דוח של כל המשתתפים
+            ייצא PDF של כל המשתתפים
+          </button>
+          <button
+            onClick={exportAllExcel}
+            disabled={busy || students.length === 0}
+            className="rounded-lg bg-green-700 px-4 py-2 text-sm font-bold text-white transition-all hover:bg-green-800 disabled:opacity-50"
+          >
+            ייצא Excel של כל המשתתפים (ZIP)
           </button>
           <button
             onClick={removeAll}
@@ -293,7 +352,7 @@ function ExportData() {
       </div>
 
       <p className="mb-3 text-xs text-slate-500 dark:text-gray-400">
-        לחיצה פותחת חלון הדפסה — בחר/י "שמור כ-PDF" כדי לקבל קובץ.
+        PDF: לחיצה פותחת חלון הדפסה — בחר/י "שמור כ-PDF". &nbsp; Excel של כל המשתתפים יורד כקובץ ZIP אחד — חלץ/י אותו לתיקייה כדי לקבל קובץ לכל משתתף.
       </p>
 
       {students.length === 0 ? (
