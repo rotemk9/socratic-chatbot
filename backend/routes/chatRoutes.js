@@ -6,6 +6,7 @@ const {
   getChatMessages,
   sendMessage,
   getHint,
+  saveEventMessage,
 } = require("../controllers/chatController");
 
 // Create a new Express router
@@ -19,6 +20,9 @@ router.post("/:chatId/message", sendMessage);
 
 // Generate a hint for a student in a specific chat
 router.post("/:chatId/hint", getHint);
+
+// Save a timed scenario-event message into a specific chat's transcript
+router.post("/:chatId/event", saveEventMessage);
 
 // Export the router so it can be used in the main application
 module.exports = router;
