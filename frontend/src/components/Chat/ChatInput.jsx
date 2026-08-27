@@ -42,8 +42,8 @@ function ChatInput({ input, setInput, sendMessage }) {
             placeholder="Write your reasoning here..."
             value={input}
 
-            // Limit the message to 500 characters
-            maxLength={500}
+            // Limit the message to 1000 characters
+            maxLength={1000}
 
             // Update the input state whenever the user types
             onChange={(event) => setInput(event.target.value)}
@@ -59,7 +59,7 @@ function ChatInput({ input, setInput, sendMessage }) {
 
           {/* Display the current character count (top-aligned for multiline) */}
           <span className="absolute right-4 top-4 text-[10px] sm:text-xs font-medium text-slate-400 dark:text-slate-500">
-            {input.length} / 500
+            {input.length} / 1000
           </span>
         </div>
 
