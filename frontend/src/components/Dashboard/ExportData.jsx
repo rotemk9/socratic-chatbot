@@ -20,6 +20,17 @@ function senderLabel(sender) {
   return "משתתף";
 }
 
+// Hebrew label for a systems-thinking stage (layer) stored on each message
+function layerLabel(layer) {
+  const map = {
+    "Broad Context": "הקשר רחב",
+    Structure: "מבנה",
+    Dynamics: "דינמיקה",
+    Evaluation: "הערכה",
+  };
+  return map[layer] || layer || "";
+}
+
 // Build a full, readable HTML report section for one student
 function studentReportHtml(s, messages) {
   const gates =
@@ -182,10 +193,12 @@ function ExportData() {
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(overview), "סקירה");
 
       // 2) Full chat transcript — every message the participant exchanged with
-      // the chatbot, in order, with timestamps (identical to the PDF export).
-      const chatRows = [["דובר", "הודעה", "זמן"]];
+      // the chatbot, in order, with the stage (layer) each message belongs to
+      // and a timestamp. The "שלב" column lets you see when the student moved
+      // between the systems-thinking stages during the conversation.
+      const chatRows = [["דובר", "הודעה", "שלב", "זמן"]];
       (messages || []).forEach((m) => {
-        chatRows.push([senderLabel(m.sender), m.text || "", m.createdAt || ""]);
+        chatRows.push([senderLabel(m.sender), m.text || "", layerLabel(m.layer), m.createdAt || ""]);
       });
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(chatRows), "שיחה");
 
