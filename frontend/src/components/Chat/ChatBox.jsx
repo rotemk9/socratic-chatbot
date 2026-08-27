@@ -13,6 +13,23 @@ import HintButton from "./HintButton";
 // Import the custom hook used to access and update the current session
 import { useSession } from "../../Context/SessionContext";
 
+// Gradual reveal of the airport events. The first event is shown as soon as the
+// chat opens; the events below are added to the conversation on a timer measured
+// from the moment the chat opens. To change the pacing, edit the "afterMs" values
+// (7 * 60 * 1000 = 7 minutes, 14 * 60 * 1000 = 14 minutes).
+const REVEAL_SCHEDULE = [
+  {
+    afterMs: 7 * 60 * 1000,
+    text:
+      "⚠️ עדכון מצב בשדה התעופה: כעת התווסף אירוע נוסף — שתי עמדות בידוק ביטחוני מתוך שמונה נסגרות עקב מחסור בכוח אדם. כיצד אירוע זה משפיע על הניתוח המערכתי שלך עד כה?",
+  },
+  {
+    afterMs: 14 * 60 * 1000,
+    text:
+      "⚠️ עדכון מצב בשדה התעופה: התווסף אירוע שלישי — חברת תעופה מקדימה את שער העלייה של טיסה גדולה, ומושכת בבת אחת המון נוסעים לאזור אחד בטרמינל. כיצד הוא משתלב עם מה שכבר זיהית?",
+  },
+];
+
 // Display and manage the main chat interface
 function ChatBox() {
   // Retrieve the current session data and session update functions
@@ -40,6 +57,12 @@ function ChatBox() {
 
   // Track whether the AI is currently generating a response
   const [isTyping, setIsTyping] = useState(false);
+
+  // Track how many airport events have been revealed to the student so far.
+  // Starts at 1 (only the first event is visible when the chat opens); each
+  // scheduled reveal increases it, and it is sent to the backend with every
+  // message so the bot only references events the student can already see.
+  const [revealedCount, setRevealedCount] = useState(1);
 
   // Create a stable fallback start time that remains unchanged between renders
   const stableFallbackTime = useRef(Date.now()).current;
@@ -71,6 +94,35 @@ function ChatBox() {
     // Run the message-loading function
     loadMessages();
   }, [chatId]);
+
+  // Reveal the additional airport events on a timer measured from the moment the
+  // chat opens. Each reveal both adds a bot message to the conversation and
+  // unlocks the event for the backend prompt (via revealedCount).
+  useEffect(() => {
+    // Schedule one timer per event still to be revealed
+    const timers = REVEAL_SCHEDULE.map((reveal, index) =>
+      setTimeout(() => {
+        // Unlock the next event for the AI (event index 0 -> count 2, etc.)
+        setRevealedCount((count) => Math.max(count, index + 2));
+
+        // Add the reveal to the conversation as an AI message
+        setMessages((prev) => [
+          ...prev,
+          {
+            _id: `reveal-${index + 2}`,
+            sender: "bot",
+            text: reveal.text,
+            createdAt: new Date().toISOString(),
+          },
+        ]);
+      }, reveal.afterMs)
+    );
+
+    // Clear any pending timers if the chat closes before they fire
+    return () => timers.forEach((timer) => clearTimeout(timer));
+    // Run once when the chat opens
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Send the user's message to the backend
   async function sendMessage() {
@@ -109,6 +161,8 @@ function ChatBox() {
         sessionId,
         studentId: userId,
         text: textToSend,
+        // Tell the backend which events the student has already seen
+        revealedCount,
       });
 
       // Replace the temporary message with the messages returned by the backend
