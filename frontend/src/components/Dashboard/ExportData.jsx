@@ -113,9 +113,31 @@ function openPrint(html) {
   setTimeout(() => w.print(), 400);
 }
 
-// A safe, participant-specific Excel file name
+// Format a date as DD.MM.YYYY (Gregorian). We use dots, not slashes, because
+// "/" is not allowed in file names. Falls back to today's date if none given.
+function formatDateForFile(value) {
+  const d = value ? new Date(value) : new Date();
+  const safe = isNaN(d.getTime()) ? new Date() : d;
+  const dd = String(safe.getDate()).padStart(2, "0");
+  const mm = String(safe.getMonth() + 1).padStart(2, "0");
+  const yyyy = safe.getFullYear();
+  return `${dd}.${mm}.${yyyy}`;
+}
+
+// Remove characters that are illegal in file names on Windows/macOS
+function sanitizeFileName(name) {
+  return name.replace(/[\\/:*?"<>|]/g, "-").replace(/\s+/g, " ").trim();
+}
+
+// A participant-specific Excel file name: "<name> - <ID> - <date>.xlsx".
+// The ID part is included only if the participant entered one at login.
 function excelFileName(s) {
-  return `participant-${s.studentNumber || s.studentId || "unknown"}.xlsx`;
+  const namePart = s.studentName?.trim() ? s.studentName.trim() : "משתתף";
+  const idPart = String(s.studentNumber || "").trim()
+    ? ` - ${String(s.studentNumber).trim()}`
+    : "";
+  const datePart = formatDateForFile(s.updatedAt);
+  return `${sanitizeFileName(`${namePart}${idPart} - ${datePart}`)}.xlsx`;
 }
 
 // Build a participant's Excel workbook (overview + full chat transcript). Shared
