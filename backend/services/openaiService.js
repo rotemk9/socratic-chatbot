@@ -28,10 +28,22 @@ async function generateSocraticResponse({
   // after 7 minutes, event 3 after 14 minutes) and sends the current count with
   // every message. Defaults to 1 so the bot always knows at least the first event.
   revealedCount = 1,
+  // The participant's gender ("male" / "female"), chosen at login. Used so the
+  // bot addresses the participant in the matching Hebrew grammatical form.
+  gender,
 }) {
   try {
     // Create an authenticated OpenAI client
     const openai = getClient();
+
+    // Instruction telling the bot which Hebrew grammatical gender to use when
+    // addressing the participant. Falls back to neutral wording if unknown.
+    const genderInstruction =
+      gender === "female"
+        ? "המשתתפת היא אישה — פנה אליה תמיד בלשון נקבה (למשל: 'תארי', 'את מבינה', 'לדעתך')."
+        : gender === "male"
+        ? "המשתתף הוא גבר — פנה אליו תמיד בלשון זכר (למשל: 'תאר', 'אתה מבין', 'לדעתך')."
+        : "אינך יודע את מין המשתתף — השתמש בניסוח ניטרלי מבחינה מגדרית ככל האפשר.";
 
     // The three simultaneous airport disruptions, ordered by the sequence in
     // which they are revealed to the student during the session.
@@ -78,9 +90,12 @@ async function generateSocraticResponse({
       studentMessage.toLowerCase().includes(pattern.toLowerCase())
     );
 
-    // Refuse to give a direct solution and guide the student with a question
+    // Refuse to give a direct solution and guide the student with a question.
+    // Phrase it in the participant's grammatical gender.
     if (wantsAnswer) {
-      return "אני כאן כדי לעזור לך לחשוב על זה בעצמך. אילו קריטריונים היית בוחן כדי למצוא פתרון?";
+      return gender === "female"
+        ? "אני כאן כדי לעזור לך לחשוב על זה בעצמך. אילו קריטריונים היית בוחנת כדי למצוא פתרון?"
+        : "אני כאן כדי לעזור לך לחשוב על זה בעצמך. אילו קריטריונים היית בוחן כדי למצוא פתרון?";
     }
 
     // Create the instructions and context provided to the AI model
@@ -142,6 +157,7 @@ ${isStuckInLayer
 
 כללי התגובה שלך:
 - השב באותה שפה שבה כתב המשתתף.
+- פנייה מגדרית: ${genderInstruction}
 - אל תיתן פתרונות ואל תפתור עבורו.
 - שאל שאלה אחת בלבד בכל תגובה — קצרה, פתוחה ומעמיקה.
 - התאם את השאלה הבאה לתשובה האחרונה; אל תשאל שאלות גנריות.
@@ -194,13 +210,21 @@ ${historyText}
 }
 
 // Generate a Socratic hint according to Bloom's Taxonomy
-async function generateSocraticHint({ currentLayer, hintsUsed, unlockedGates }) {
+async function generateSocraticHint({ currentLayer, hintsUsed, unlockedGates, gender }) {
   try {
     // Create an authenticated OpenAI client
     const openai = getClient();
 
     // Select the Bloom level according to the number of hints already used
     const bloomLevel = getBloomLevel(hintsUsed);
+
+    // Tell the model which Hebrew grammatical gender to address the student in
+    const genderRule =
+      gender === "female"
+        ? "Address the student in Hebrew FEMININE grammatical form (e.g. 'תארי', 'את')."
+        : gender === "male"
+        ? "Address the student in Hebrew MASCULINE grammatical form (e.g. 'תאר', 'אתה')."
+        : "Use gender-neutral Hebrew phrasing where possible.";
 
     // Create the instructions for generating the Socratic hint
     const systemPrompt = `
@@ -214,6 +238,7 @@ Unlocked gates: ${unlockedGates?.join(", ") || "none"}
 
 Rules:
 - Write the hint in Hebrew.
+- ${genderRule}
 - Ask only ONE open-ended question.
 - Do not give the answer.
 - Do not solve the task.
