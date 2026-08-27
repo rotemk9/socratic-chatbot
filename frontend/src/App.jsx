@@ -16,8 +16,6 @@ import ResearcherLogin from "./components/ResearcherLogin";
 import WaitingScreen from "./components/WaitingScreen";
 import AdminStudents from "./components/Dashboard/AdminStudents";
 import ExportData from "./components/Dashboard/ExportData";
-import PreTaskSurvey from "./components/Questionnaire/PreTaskSurvey";
-import PostTaskSurvey from "./components/Questionnaire/PostTaskSurvey";
 
 // Import the shared session context
 import { useSession } from "./Context/SessionContext";
@@ -27,24 +25,15 @@ function App() {
   // Get the active student session and the function used to clear it
   const { sessionInfo, clearSession } = useSession();
 
-  // Track whether the student completed the pre-task questionnaire
-  const [preTaskDone, setPreTaskDone] = useState(false);
-
   // Store the authenticated researcher information
   const [researcher, setResearcher] = useState(null);
 
   // Programmatically navigate between application routes
   const navigate = useNavigate();
 
-  // Researcher test account: logging in with ID "1234567" and name "Admin" is
-  // tagged by the backend with role "admin". We recognize it by that role (the
-  // real ID/name are no longer stored), which reveals the "skip" shortcut.
-  const isTestUser = sessionInfo?.role === "admin";
-
   // Clear student and researcher data and return to the landing page
   function handleLogout() {
     setResearcher(null);
-    setPreTaskDone(false);
     clearSession();
     navigate("/"); // Instantly kicks them back to the landing page URL
   }
@@ -133,15 +122,29 @@ function App() {
                 <Navigate to="/login" />
               ) : sessionInfo.group === "Pending" ? (
                 // Hold the student on a waiting screen until the researcher
-                // assigns them a group (or the automatic fallback kicks in)
+                // assigns them a group
                 <WaitingScreen />
-              ) : !preTaskDone ? (
-                // Require the pre-task questionnaire before opening the chat
-                // (a Skip button appears here only in dev mode)
-                <PreTaskSurvey onDone={() => setPreTaskDone(true)} allowSkip={isTestUser} />
               ) : sessionInfo.status === "completed" ? (
-                // Display the post-task questionnaire after session completion
-                <PostTaskSurvey onDone={handleLogout} />
+                // Show a simple end-of-session screen once the time is up
+                // (the pre/post questionnaires were removed — the platform is
+                // now just the Socratic chatbot)
+                <div className="flex flex-1 items-center justify-center">
+                  <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white/80 p-8 text-center shadow-xl backdrop-blur-xl dark:border-white/5 dark:bg-[#1e2333]/80" dir="rtl">
+                    <div className="mb-4 text-4xl">✅</div>
+                    <h2 className="mb-2 text-2xl font-extrabold text-slate-900 dark:text-white">
+                      השיחה הסתיימה
+                    </h2>
+                    <p className="mb-6 text-sm text-slate-600 dark:text-slate-300">
+                      תודה רבה על השתתפותך במחקר.
+                    </p>
+                    <button
+                      onClick={handleLogout}
+                      className="w-full rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 py-3 font-bold text-white shadow-lg transition-all hover:scale-[1.02]"
+                    >
+                      חזרה לדף הבית
+                    </button>
+                  </div>
+                </div>
               ) : (
                 // Display the active student session interface
                 <div className="flex flex-col space-y-6">
