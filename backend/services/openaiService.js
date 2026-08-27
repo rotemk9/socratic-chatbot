@@ -212,6 +212,86 @@ ${historyText}
   }
 }
 
+// Generate a NORMAL (non-Socratic) assistant reply for the CONTROL group.
+// This is the comparison condition in the study: unlike the Socratic bot, this
+// assistant MAY give direct answers, explanations, examples and information.
+async function generateControlResponse({ studentMessage, chatHistory, revealedCount = 1, gender }) {
+  try {
+    // Create an authenticated OpenAI client
+    const openai = getClient();
+
+    // Convert the ten most recent messages into text for the AI prompt
+    const historyText = (chatHistory || [])
+      .slice(-10)
+      .map((msg) => `${msg.sender}: ${msg.text}`)
+      .join("\n");
+
+    // The three airport disruptions, revealed to the student gradually
+    const AIRPORT_EVENTS = [
+      "מערכת מיון המזוודות האוטומטית מאטה ל-60% מהקצב בגלל תקלה במסוע.",
+      "שתי עמדות בידוק ביטחוני מתוך שמונה נסגרות עקב מחסור בכוח אדם.",
+      "חברת תעופה מקדימה את שער העלייה של טיסה גדולה, ומושכת בבת אחת המון נוסעים לאזור אחד בטרמינל.",
+    ];
+    const safeRevealedCount = Math.max(1, Math.min(revealedCount, AIRPORT_EVENTS.length));
+    const revealedEventsText = AIRPORT_EVENTS
+      .slice(0, safeRevealedCount)
+      .map((event, index) => `${index + 1}. ${event}`)
+      .join("\n");
+
+    // Gender-appropriate address
+    const genderInstruction =
+      gender === "female"
+        ? "המשתתפת היא אישה — פנה אליה בלשון נקבה."
+        : gender === "male"
+        ? "המשתתף הוא גבר — פנה אליו בלשון זכר."
+        : "השתמש בניסוח ניטרלי מבחינה מגדרית ככל האפשר.";
+
+    // A friendly, ordinary assistant (NOT Socratic)
+    const systemPrompt = `
+אתה עוזר למידה ידידותי ומקצועי המלווה משתתף בעל רקע הנדסי בניתוח תרחיש בשדה תעופה.
+בניגוד לגישה סוקרטית — כאן מותר ואף רצוי לתת תשובות ישירות, הסברים, דוגמאות ומידע מועיל. אתה משוחח בצורה טבעית ועוזר למשתתף להבין את המצב.
+
+סיפור הרקע (התרחיש):
+"יום שישי בבוקר, שעת שיא. נוסעים מגיעים לטרמינל 3 כשעתיים לפני הטיסה, ועוברים דרך צ'ק-אין, מסירת מזוודות, בידוק ביטחוני, ביקורת דרכונים ועלייה למטוס.
+נכון לרגע זה נחשפו בפני המשתתף האירועים הבאים בלבד:
+${revealedEventsText}
+מבחינת הנוסעים, מדובר במעבר פשוט מתחנה לתחנה."
+
+כללי התגובה שלך:
+- כתוב את כל התגובה בשפה אחת ועקבית — אותה שפה שבה כתב המשתתף (בדרך כלל עברית).
+- אסור לשלב מילים באנגלית או בשפה זרה בתוך משפט עברי, ואל תיצור מילים משובשות.
+- פנייה מגדרית: ${genderInstruction}
+- ענה בצורה ברורה, מועילה ותומכת; מותר לתת תשובות ישירות והסברים.
+- התייחס אך ורק לאירועים שנחשפו לעיל; אל תזכיר אירועים שטרם נחשפו.
+- שמור על תגובה תמציתית וקריאה (כ-2 עד 5 משפטים).
+- הקפד על עברית תקנית וללא שגיאות כתיב.
+
+שיחה אחרונה:
+${historyText}
+`;
+
+    // Send the student's message and system instructions to OpenAI
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: studentMessage },
+      ],
+      temperature: 0.6,
+    });
+
+    // Extract and clean the generated response text
+    const text = response.choices[0].message.content?.trim();
+
+    // Use a simple conversational fallback if OpenAI returns nothing
+    return text || "תודה על מה שכתבת. תרצה שאסביר עוד על אחד ההיבטים שהזכרת?";
+  } catch (error) {
+    // Print the error and use a neutral conversational fallback
+    console.error("OpenAI control response error:", error.message);
+    return "תודה על מה שכתבת. תרצה שאסביר עוד על אחד ההיבטים שהזכרת?";
+  }
+}
+
 // Generate a Socratic hint according to Bloom's Taxonomy
 async function generateSocraticHint({ currentLayer, hintsUsed, unlockedGates, gender }) {
   try {
@@ -575,6 +655,7 @@ function countMatches(text, words) {
 // Export the OpenAI service functions for use in controllers and other services
 module.exports = {
   generateSocraticResponse,
+  generateControlResponse,
   generateSocraticHint,
   evaluateLayerWithOpenAI, // NOTE: Export name changed here!
 };
