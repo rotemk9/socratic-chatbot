@@ -36,9 +36,10 @@ function ChatMessages({ messages, isTyping }) {
           יום שישי בבוקר, שעת שיא. נוסע מגיע לטרמינל 3 שעתיים לפני הטיסה, ועובר דרך צ'ק-אין, מסירת מזוודה, בידוק ביטחוני, ביקורת דרכונים ועלייה למטוס. מבחינת הנוסע, מדובר במעבר פשוט מתחנה לתחנה.
         </p>
 
-        {/* Describe the three simultaneous disruptions in the airport */}
+        {/* Describe only the first disruption; the other events are introduced
+            gradually inside the chat as the session progresses */}
         <p className="mb-5 sm:mb-6 text-sm sm:text-[15px] leading-relaxed text-slate-700 dark:text-slate-300">
-          באותו בוקר קורים במקביל שלושה אירועים שהנוסע כלל אינו מודע אליהם: (1) מערכת מיון המזוודות האוטומטית מאטה ל-60% מהקצב בגלל תקלה במסוע; (2) שתי עמדות בידוק ביטחוני מתוך שמונה נסגרות עקב מחסור בכוח אדם; (3) חברת תעופה מקדימה את שער העלייה של טיסה גדולה, ומושכת בבת אחת המון נוסעים לאזור אחד בטרמינל.
+          באותו בוקר מתרחש אירוע שהנוסע כלל אינו מודע אליו: מערכת מיון המזוודות האוטומטית מאטה ל-60% מהקצב בגלל תקלה במסוע. במהלך השיחה עשויים להתווסף אירועים נוספים בשדה התעופה.
         </p>
 
         {/* Highlight the main task that the student must solve */}
