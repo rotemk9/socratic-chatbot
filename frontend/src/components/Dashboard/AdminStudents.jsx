@@ -1,8 +1,14 @@
-// Import React hooks for state and the polling effect
-import { useEffect, useState, useCallback } from "react";
+// Import React hooks for state, refs, and the polling effect
+import { useEffect, useState, useCallback, useRef } from "react";
 
-// Import the API helpers for listing, assigning, and deleting students
-import { getAllStudents, assignSessionGroup, deleteStudent, deleteAllStudents } from "../../services/sessionService";
+// Import the API helpers for listing, assigning, completing, and deleting students
+import {
+  getAllStudents,
+  assignSessionGroup,
+  deleteStudent,
+  deleteAllStudents,
+  completeSession,
+} from "../../services/sessionService";
 
 // Human-readable Hebrew label for each group value
 const GROUP_LABEL = {
@@ -36,11 +42,44 @@ function AdminStudents() {
   // Track which session is being updated (to disable its buttons briefly)
   const [busyId, setBusyId] = useState(null);
 
-  // Load all students from the backend
+  // A short-lived banner shown when a student has just finished the chat
+  const [notice, setNotice] = useState(null);
+
+  // Remember which sessions were already completed, so we only alert on NEW
+  // completions (null means the first load hasn't happened yet).
+  const knownCompletedRef = useRef(null);
+
+  // A friendly display name for a participant
+  const displayName = (s) =>
+    s.studentName?.trim() ? s.studentName : `משתתף ${s.studentId || "—"}`;
+
+  // Load all students from the backend and detect newly completed sessions
   const load = useCallback(async () => {
     try {
       const data = await getAllStudents();
-      setStudents(Array.isArray(data) ? data : []);
+      const list = Array.isArray(data) ? data : [];
+      setStudents(list);
+
+      // Detect sessions that have just switched to "completed" since last poll
+      const completedIds = new Set(
+        list.filter((s) => s.status === "completed").map((s) => s.sessionId)
+      );
+
+      if (knownCompletedRef.current === null) {
+        // First load — just record the current state, do not alert
+        knownCompletedRef.current = completedIds;
+      } else {
+        const newlyDone = list.filter(
+          (s) => s.status === "completed" && !knownCompletedRef.current.has(s.sessionId)
+        );
+        if (newlyDone.length > 0) {
+          const names = newlyDone.map(displayName).join(", ");
+          setNotice(
+            `🔔 ${newlyDone.length === 1 ? "סטודנט סיים" : "סטודנטים סיימו"} את השיחה: ${names}`
+          );
+        }
+        knownCompletedRef.current = completedIds;
+      }
     } catch (err) {
       console.error("failed to load students:", err);
     }
@@ -52,6 +91,13 @@ function AdminStudents() {
     const interval = setInterval(load, 4000);
     return () => clearInterval(interval);
   }, [load]);
+
+  // Automatically dismiss the "student finished" banner after a few seconds
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(null), 12000);
+    return () => clearTimeout(timer);
+  }, [notice]);
 
   // Permanently delete ALL participants after a strong confirmation
   async function removeAll() {
@@ -110,11 +156,31 @@ function AdminStudents() {
     }
   }
 
+  // Manually mark a participant's session as completed (e.g., if they closed the
+  // browser before the timer ended, so it never auto-completed).
+  async function markComplete(s) {
+    try {
+      setBusyId(s.sessionId);
+      // Optimistically show it as completed for a snappy UI
+      setStudents((prev) =>
+        prev.map((x) => (x.sessionId === s.sessionId ? { ...x, status: "completed" } : x))
+      );
+      await completeSession(s.sessionId);
+      await load();
+    } catch (err) {
+      console.error("failed to complete session:", err);
+      load();
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   // Small counts for the summary line
   const counts = {
     pending: students.filter((s) => s.group === "Pending").length,
     experimental: students.filter((s) => s.group === "Experimental Group").length,
     control: students.filter((s) => s.group === "Control Group").length,
+    completed: students.filter((s) => s.status === "completed").length,
   };
 
   // A single action button (highlighted when it is the current group)
@@ -155,6 +221,9 @@ function AdminStudents() {
           <span className="rounded-full bg-slate-200 px-3 py-0.5 text-slate-700 dark:bg-slate-500/20 dark:text-slate-300">
             ביקורת: {counts.control}
           </span>
+          <span className="rounded-full bg-green-100 px-3 py-0.5 text-green-800 dark:bg-green-500/20 dark:text-green-200">
+            הושלמו: {counts.completed}
+          </span>
           <button
             onClick={removeAll}
             disabled={busyId === "__all__" || students.length === 0}
@@ -164,6 +233,20 @@ function AdminStudents() {
           </button>
         </div>
       </div>
+
+      {/* Notification: a student has just finished the chat */}
+      {notice && (
+        <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-green-300 bg-green-50 px-4 py-2 text-sm font-semibold text-green-800 dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-200">
+          <span>{notice}</span>
+          <button
+            onClick={() => setNotice(null)}
+            className="rounded-md px-2 py-0.5 text-green-700 hover:bg-green-100 dark:text-green-300 dark:hover:bg-green-500/20"
+            aria-label="סגור התראה"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Empty state */}
       {students.length === 0 ? (
@@ -176,14 +259,16 @@ function AdminStudents() {
             <li
               key={s.sessionId}
               className={`flex flex-col gap-3 rounded-xl border p-3 sm:flex-row sm:items-center sm:justify-between ${
-                s.group === "Pending"
+                s.status === "completed"
+                  ? "border-green-300 bg-green-50 dark:border-green-500/30 dark:bg-green-500/5"
+                  : s.group === "Pending"
                   ? "border-yellow-300 bg-yellow-50 dark:border-yellow-500/30 dark:bg-yellow-500/5"
                   : "border-slate-200 bg-slate-50 dark:border-white/5 dark:bg-[#2a2f42]"
               }`}
             >
               {/* Identity + status + current group */}
               <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="font-semibold text-slate-900 dark:text-white">
                     {s.studentName?.trim() ? s.studentName : `משתתף ${s.studentId || "—"}`}
                   </span>
@@ -192,9 +277,19 @@ function AdminStudents() {
                   >
                     {GROUP_LABEL[s.group] || s.group}
                   </span>
+                  {/* Completion status badge */}
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                      s.status === "completed"
+                        ? "bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-200"
+                        : "bg-slate-200 text-slate-600 dark:bg-white/5 dark:text-slate-300"
+                    }`}
+                  >
+                    {s.status === "completed" ? "✓ הושלם" : "בתהליך"}
+                  </span>
                 </div>
                 <span className="text-xs text-slate-500 dark:text-gray-400">
-                  ת״ז: {s.studentId || "—"} · סטטוס: {s.status === "completed" ? "סיים" : "פעיל"}
+                  ת״ז: {s.studentId || "—"}
                 </span>
               </div>
 
@@ -220,6 +315,17 @@ function AdminStudents() {
                   <span className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-500 dark:bg-white/5 dark:text-slate-400">
                     🔒 נעול
                   </span>
+                )}
+                {/* Manual "mark as completed" — useful if the student closed the
+                    browser before the timer ended and it never auto-completed */}
+                {s.status !== "completed" && (
+                  <button
+                    onClick={() => markComplete(s)}
+                    disabled={busyId === s.sessionId}
+                    className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-bold text-white transition-all hover:bg-green-700 disabled:opacity-60"
+                  >
+                    סמן כהושלם
+                  </button>
                 )}
                 <button
                   onClick={() => removeStudent(s)}
