@@ -37,7 +37,7 @@ async function applyGroup(session, group) {
 async function startSession(req, res) {
   try {
     // Extract the user's information from the request body
-    const { name, studentId, email , role } = req.body;
+    const { name, studentId, email, gender, role } = req.body;
 
     // Researcher test account: entering ID "1234567" with name "Admin" skips the
     // waiting room (goes straight to the experimental group) and enables the
@@ -53,15 +53,17 @@ if (role === "researcher") {
   });
 }
 
-    // Validate that the required student information was provided
-    if (!name || !studentId) {
+    // Validate that a name was provided. The student ID is optional.
+    if (!name) {
       return res.status(400).json({
-        message: "Name and student ID are required",
+        message: "Name is required",
       });
     }
 
-    // Find an existing participant by their student ID, or create a new one
-    let user = await User.findOne({ studentId });
+    // Reuse an existing participant only when a student ID was provided;
+    // without an ID we cannot reliably match a returning participant, so we
+    // always create a fresh participant instead.
+    let user = studentId ? await User.findOne({ studentId }) : null;
 
     // Create a new user if no matching user was found
     if (!user) {
@@ -69,6 +71,8 @@ if (role === "researcher") {
         name,
         studentId,
         email,
+        // Store the participant's gender for the research data
+        gender,
         // Tag the researcher test account by role so the UI can recognize it
         // (it enables the "skip questionnaire" shortcut).
         role: isTestUser ? "admin" : "student",
@@ -331,6 +335,7 @@ async function getAllStudents(req, res) {
         studentName: s.studentId.name,
         studentId: s.studentId.studentId,
         email: s.studentId.email,
+        gender: s.studentId.gender,
         group: s.group,
         status: s.status,
         createdAt: s.createdAt,
