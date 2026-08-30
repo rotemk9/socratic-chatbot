@@ -3,6 +3,7 @@ import { useSession } from "../../Context/SessionContext";
 
 // Import the presentational components displayed inside the side panel
 import SessionInfo from "./SessionInfo";
+import ScenariosPanel from "./ScenariosPanel";
 import InfoCard from "./InfoCard";
 
 /*
@@ -58,6 +59,9 @@ function SidePanel() {
         onTimeUp={handleTimeUp}
         onReminder={handleTimerReminder}
       />
+
+      {/* Background story + scenarios, revealed gradually over the session */}
+      <ScenariosPanel />
     </aside>
   );
 }
