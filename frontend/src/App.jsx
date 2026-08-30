@@ -135,11 +135,13 @@ function App() {
                       השיחה הסתיימה
                     </h2>
                     <p className="mb-5 text-sm text-slate-600 dark:text-slate-300">
-                      תודה רבה על השתתפותך במחקר. לסיום, יש למלא את השאלון המסכם:
+                      תודה רבה על השתתפותך במחקר. כדי להשלים את ההשתתפות, עליך למלא את השאלון המסכם:
                     </p>
 
                     {/* Post-session questionnaire — the link is chosen by the
-                        participant's research group (experimental vs. control) */}
+                        participant's research group (experimental vs. control).
+                        This is the only action here, so the participant must go
+                        to the questionnaire to finish. */}
                     <a
                       href={
                         sessionInfo.group === "Control Group"
@@ -148,17 +150,10 @@ function App() {
                       }
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="mb-3 block w-full rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 py-3 font-bold text-white shadow-lg transition-all hover:scale-[1.02]"
+                      className="block w-full rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 py-3.5 font-bold text-white shadow-lg transition-all hover:scale-[1.02]"
                     >
                       מילוי השאלון המסכם ↗
                     </a>
-
-                    <button
-                      onClick={handleLogout}
-                      className="w-full rounded-lg border border-slate-300 py-3 font-bold text-slate-600 transition-all hover:bg-slate-50 dark:border-white/10 dark:text-slate-300 dark:hover:bg-white/5"
-                    >
-                      סיום וחזרה לדף הבית
-                    </button>
                   </div>
                 </div>
               ) : (
