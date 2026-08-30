@@ -19,6 +19,12 @@ function StartSessionForm({ onBack }) {
   // Store an error message if the session cannot be started
   const [error, setError] = useState("");
 
+  // Track whether the participant confirmed they filled the research questionnaire
+  const [filledQuestionnaire, setFilledQuestionnaire] = useState(false);
+
+  // Link to the research questionnaire the participant must complete before entering
+  const QUESTIONNAIRE_URL = "https://forms.gle/AmGP82AB2KGSSgRQ8";
+
   // Update the matching form field whenever an input changes
   function handleChange(e) {
     setFormData({
@@ -44,6 +50,12 @@ function StartSessionForm({ onBack }) {
     // Require the participant to choose a gender
     if (!formData.gender) {
       setError("יש לבחור מין");
+      return;
+    }
+
+    // Require the participant to confirm they filled the research questionnaire
+    if (!filledQuestionnaire) {
+      setError("יש למלא את השאלון ולסמן שמילאת אותו לפני הכניסה");
       return;
     }
 
@@ -133,6 +145,34 @@ function StartSessionForm({ onBack }) {
             </div>
           </div>
 
+          {/* Research questionnaire — must be filled before entering */}
+          <div className="rounded-lg border border-purple-200 bg-purple-50 p-4 dark:border-purple-500/30 dark:bg-purple-500/10">
+            <p className="mb-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+              לפני הכניסה, יש למלא את שאלון המחקר:
+            </p>
+
+            {/* Link that opens the questionnaire in a new tab */}
+            <a
+              href={QUESTIONNAIRE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mb-3 inline-flex items-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-sm font-bold text-white transition-all hover:bg-purple-700"
+            >
+              פתח/י את השאלון ↗
+            </a>
+
+            {/* Confirmation checkbox that unlocks the Start button */}
+            <label className="flex cursor-pointer items-start gap-2 text-sm text-slate-700 dark:text-slate-200">
+              <input
+                type="checkbox"
+                checked={filledQuestionnaire}
+                onChange={(e) => setFilledQuestionnaire(e.target.checked)}
+                className="mt-0.5 h-4 w-4 accent-purple-600"
+              />
+              <span>מילאתי את השאלון</span>
+            </label>
+          </div>
+
           {/* Display an error message when session creation fails */}
           {error && (
             <p className="text-center text-sm font-medium text-red-500 dark:text-red-400">
@@ -144,7 +184,8 @@ function StartSessionForm({ onBack }) {
           <div className="pt-2">
             <button
               type="submit"
-              className="w-full rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 py-3.5 font-bold text-white shadow-lg shadow-purple-500/20 transition-all hover:scale-[1.02] hover:shadow-purple-500/40 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-[#1e2333]"
+              disabled={!filledQuestionnaire}
+              className="w-full rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 py-3.5 font-bold text-white shadow-lg shadow-purple-500/20 transition-all hover:scale-[1.02] hover:shadow-purple-500/40 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-white disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100 dark:focus:ring-offset-[#1e2333]"
             >
               Start Session
             </button>
