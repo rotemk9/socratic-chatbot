@@ -1,5 +1,5 @@
 // Import React state management
-import { useState } from "react";
+import { useState, useRef } from "react";
 
 // Import the session context used to start a new student session
 import { useSession } from "../Context/SessionContext";
@@ -22,6 +22,14 @@ function StartSessionForm({ onBack }) {
   // Track whether the participant confirmed they filled the research questionnaire
   const [filledQuestionnaire, setFilledQuestionnaire] = useState(false);
 
+  // Track whether a session is currently being created, so the button shows a
+  // loading state and cannot be clicked more than once.
+  const [submitting, setSubmitting] = useState(false);
+
+  // A synchronous guard against rapid double-clicks (state updates are async,
+  // so a ref catches the extra clicks that fire before the re-render).
+  const submittingRef = useRef(false);
+
   // Link to the research questionnaire the participant must complete before entering
   const QUESTIONNAIRE_URL = "https://forms.gle/AmGP82AB2KGSSgRQ8";
 
@@ -37,6 +45,10 @@ function StartSessionForm({ onBack }) {
   async function handleSubmit(e) {
     // Prevent the browser from refreshing the page
     e.preventDefault();
+
+    // Ignore extra clicks while a session is already being created. This stops
+    // the same participant from being created several times.
+    if (submittingRef.current) return;
 
     // Clear any previous error message
     setError("");
@@ -59,14 +71,21 @@ function StartSessionForm({ onBack }) {
       return;
     }
 
+    // Lock submission (synchronous ref first, then UI state)
+    submittingRef.current = true;
+    setSubmitting(true);
+
     try {
       // Send the student information through the session context. We also send
       // the entry-questionnaire confirmation so the admin panel can show it.
       await startStudentSession({ ...formData, filledQuestionnaire });
+      // On success the app navigates to the session, so this component unmounts.
     } catch (err) {
-      // Display an error if the session cannot be started
-      setError("Failed to start session");
+      // Display an error if the session cannot be started, and allow a retry
+      setError("אירעה שגיאה בכניסה. נסה/י שוב.");
       console.error(err);
+      submittingRef.current = false;
+      setSubmitting(false);
     }
   }
 
@@ -188,10 +207,10 @@ function StartSessionForm({ onBack }) {
           <div className="pt-2">
             <button
               type="submit"
-              disabled={!filledQuestionnaire}
+              disabled={!filledQuestionnaire || submitting}
               className="w-full rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 py-3.5 font-bold text-white shadow-lg shadow-purple-500/20 transition-all hover:scale-[1.02] hover:shadow-purple-500/40 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-white disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100 dark:focus:ring-offset-[#1e2333]"
             >
-              Start Session
+              {submitting ? "מתחבר… אנא המתן/י" : "Start Session"}
             </button>
           </div>
 
