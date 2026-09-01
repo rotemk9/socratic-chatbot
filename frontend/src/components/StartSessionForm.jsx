@@ -172,7 +172,7 @@ function StartSessionForm({ onBack }) {
             </label>
 
             {/* Guidance for the participant */}
-            <p className="mt-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+            <p className="mt-2 text-sm font-medium leading-relaxed text-slate-700 dark:text-slate-200">
               רק לאחר מילוי השאלון, סמן את הקוביה. לחץ פעם אחת על הכפתור "Start Session" לתחילת הניסוי והמתן בסבלנות.
             </p>
           </div>
