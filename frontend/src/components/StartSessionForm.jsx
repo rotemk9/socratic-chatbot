@@ -60,10 +60,9 @@ function StartSessionForm({ onBack }) {
     }
 
     try {
-      // Send the student information through the session context. The backend
-      // recognizes the researcher test account (ID 1234567 / name Admin) by
-      // its credentials, so no extra flag is needed here.
-      await startStudentSession({ ...formData });
+      // Send the student information through the session context. We also send
+      // the entry-questionnaire confirmation so the admin panel can show it.
+      await startStudentSession({ ...formData, filledQuestionnaire });
     } catch (err) {
       // Display an error if the session cannot be started
       setError("Failed to start session");
@@ -171,6 +170,11 @@ function StartSessionForm({ onBack }) {
               />
               <span>מילאתי את השאלון</span>
             </label>
+
+            {/* Guidance for the participant */}
+            <p className="mt-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+              רק לאחר מילוי השאלון, סמן את הקוביה. לחץ פעם אחת על הכפתור "Start Session" לתחילת הניסוי והמתן בסבלנות.
+            </p>
           </div>
 
           {/* Display an error message when session creation fails */}
