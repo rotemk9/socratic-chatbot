@@ -1,14 +1,8 @@
-// Import the Express framework for creating routes
+// This router is intentionally empty. The control-group logic lives inside
+// chatController.js (the /chat/:chatId/message endpoint), so no separate
+// control routes are needed. Kept as a valid empty router so any existing
+// import in server.js keeps working.
 const express = require("express");
-
-// Import the controller function used to save control-group logs
-const { saveControlLog } = require("../controllers/controlController");
-
-// Create a new Express router
 const router = express.Router();
 
-// Save a new message or activity log for a control-group student
-router.post("/log", saveControlLog);
-
-// Export the router so it can be used in the main application
 module.exports = router;
