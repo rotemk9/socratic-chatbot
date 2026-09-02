@@ -78,16 +78,53 @@ async function sendMessage(req, res) {
       layer: session.currentLayer,
     });
 
-    // Handle students who belong to the control group. The control group does
-    // NOT receive any AI reply to their messages — their text is only saved.
-    // (They still receive the timed scenario reveals at 7 and 14 minutes, which
-    // are handled separately on the client.)
+    // Handle students who belong to the control group. Instead of a Socratic
+    // (or AI) reply, the control bot answers with one FIXED phrase out of five
+    // neutral prompts, rotating between them, just to keep the participant
+    // talking. No answers and no guidance are given. (The timed scenario reveals
+    // at 7/14/21 minutes still appear — they are handled on the client.)
     if (session.group === "Control Group") {
       // Save the student's message in the control-group log
       await ControlGroupLog.create({
         studentId,
         sessionId,
         text,
+      });
+
+      // Five fixed continuation prompts, in the participant's grammatical gender
+      const CONTROL_REPLIES = {
+        male: [
+          "אשמח שתרחיב עוד בנושא, בבקשה.",
+          "מעניין. תוכל להסביר עוד על מה שכתבת?",
+          "תודה. אילו היבטים נוספים חשבת עליהם?",
+          "הבנתי. מה עוד עולה לך בראש בנוגע למצב בשדה התעופה?",
+          "אשמח לשמוע עוד — תוכל לפרט קצת יותר?",
+        ],
+        female: [
+          "אשמח שתרחיבי עוד בנושא, בבקשה.",
+          "מעניין. תוכלי להסביר עוד על מה שכתבת?",
+          "תודה. אילו היבטים נוספים חשבת עליהם?",
+          "הבנתי. מה עוד עולה לך בראש בנוגע למצב בשדה התעופה?",
+          "אשמח לשמוע עוד — תוכלי לפרט קצת יותר?",
+        ],
+      };
+
+      // Choose the reply set by gender (defaults to the male-form set)
+      const replies = gender === "female" ? CONTROL_REPLIES.female : CONTROL_REPLIES.male;
+
+      // Rotate through the fixed replies by the number of messages the student
+      // has already sent, so consecutive replies are not identical.
+      const userCount = await Message.countDocuments({ chatId, sender: "user" });
+      const replyText = replies[(Math.max(userCount, 1) - 1) % replies.length];
+
+      // Save the fixed reply as a bot message so it is part of the transcript
+      const controlBotMessage = await Message.create({
+        chatId,
+        sessionId,
+        studentId,
+        sender: "bot",
+        text: replyText,
+        layer: session.currentLayer,
       });
 
       // Evaluate the student's message and update the session progress
@@ -97,10 +134,10 @@ async function sendMessage(req, res) {
         messageText: text,
       });
 
-      // Return the result without generating an AI response
+      // Return the student message together with the fixed reply
       return res.json({
         userMessage,
-        botMessage: null,
+        botMessage: controlBotMessage,
         session: updatedSession,
         controlGroup: true,
       });
