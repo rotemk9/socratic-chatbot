@@ -1,4 +1,3 @@
-
 // Import React hooks for managing state, side effects, and persistent references
 import { useEffect, useState, useRef } from "react";
 
@@ -28,6 +27,11 @@ const REVEAL_SCHEDULE = [
     afterMs: 14 * 60 * 1000,
     text:
       "⚠️ עדכון מצב בשדה התעופה: התווסף אירוע שלישי — חברת תעופה מקדימה את שער העלייה של טיסה גדולה, ומושכת בבת אחת המון נוסעים לאזור אחד בטרמינל. כיצד הוא משתלב עם מה שכבר זיהית?",
+  },
+  {
+    afterMs: 21 * 60 * 1000,
+    text:
+      "⚠️ עדכון מצב בשדה התעופה: התווסף אירוע רביעי — עקב מזג האוויר הסוער וכמות המטוסים הרבה שנמצאת כרגע במנחת, זמן ההעברה של המטוסים לכיוון המסלול הראשי מתעכב בכ-20 דקות, ופוגע בלוח הזמנים של מטוסים אחרים הממתינים לנחות ולהמריא. כיצד אירוע זה משתלב עם התמונה המערכתית שזיהית עד כה?",
   },
 ];
 
@@ -293,7 +297,7 @@ function ChatBox() {
       {/* Display the conversation messages and AI typing indicator */}
       <ChatMessages
         messages={messages}
-        isTyping={safeSession.group === "Control Group" ? false : isTyping}
+        isTyping={isTyping}
         gender={safeSession.gender}
       />
 
