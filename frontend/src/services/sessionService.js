@@ -21,6 +21,11 @@ export function completeSession(sessionId) {
   return apiPost("/session/complete", { sessionId });
 }
 
+// Manually set whether a participant completed the final questionnaire
+export function setPostQuestionnaire(sessionId, done) {
+  return apiPost("/session/post-questionnaire", { sessionId, done });
+}
+
 // Retrieve the list of students who are waiting for a manual group assignment
 export function getPendingSessions() {
   return apiGet("/session/pending");
