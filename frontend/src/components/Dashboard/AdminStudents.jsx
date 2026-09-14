@@ -1,17 +1,19 @@
 // Import React hooks for state, refs, and the polling effect
 import { useEffect, useState, useCallback, useRef } from "react";
 
-// Import the API helpers for listing, assigning, and deleting students
+// Import the API helpers for listing, assigning, deleting, and updating students
 import {
   getAllStudents,
   assignSessionGroup,
   deleteStudent,
   deleteAllStudents,
+  setPostQuestionnaire,
 } from "../../services/sessionService";
 
 // Human-readable Hebrew label for each group value
 const GROUP_LABEL = {
   "Experimental Group": "ניסוי",
+  "Sympathetic Experiment Group": "ניסוי סימפטי",
   "Control Group": "ביקורת",
   Pending: "ממתין לאישור",
 };
@@ -20,6 +22,8 @@ const GROUP_LABEL = {
 const GROUP_BADGE = {
   "Experimental Group":
     "bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-300",
+  "Sympathetic Experiment Group":
+    "bg-pink-100 text-pink-700 dark:bg-pink-500/20 dark:text-pink-300",
   "Control Group":
     "bg-slate-200 text-slate-700 dark:bg-slate-500/20 dark:text-slate-300",
   Pending:
@@ -155,10 +159,32 @@ function AdminStudents() {
     }
   }
 
+  // Toggle whether a participant completed the FINAL questionnaire (manual)
+  async function togglePostQuestionnaire(s) {
+    const newValue = !s.postQuestionnaireDone;
+    try {
+      setBusyId(s.sessionId);
+      // Optimistically update the row
+      setStudents((prev) =>
+        prev.map((x) =>
+          x.sessionId === s.sessionId ? { ...x, postQuestionnaireDone: newValue } : x
+        )
+      );
+      await setPostQuestionnaire(s.sessionId, newValue);
+      await load();
+    } catch (err) {
+      console.error("failed to update questionnaire status:", err);
+      load();
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   // Small counts for the summary line
   const counts = {
     pending: students.filter((s) => s.group === "Pending").length,
     experimental: students.filter((s) => s.group === "Experimental Group").length,
+    sympathetic: students.filter((s) => s.group === "Sympathetic Experiment Group").length,
     control: students.filter((s) => s.group === "Control Group").length,
     completed: students.filter((s) => s.status === "completed").length,
   };
@@ -197,6 +223,9 @@ function AdminStudents() {
           </span>
           <span className="rounded-full bg-purple-100 px-3 py-0.5 text-purple-700 dark:bg-purple-500/20 dark:text-purple-300">
             ניסוי: {counts.experimental}
+          </span>
+          <span className="rounded-full bg-pink-100 px-3 py-0.5 text-pink-700 dark:bg-pink-500/20 dark:text-pink-300">
+            ניסוי סימפטי: {counts.sympathetic}
           </span>
           <span className="rounded-full bg-slate-200 px-3 py-0.5 text-slate-700 dark:bg-slate-500/20 dark:text-slate-300">
             ביקורת: {counts.control}
@@ -271,6 +300,34 @@ function AdminStudents() {
                 <span className="text-xs text-slate-500 dark:text-gray-400">
                   ת״ז: {s.studentId || "—"}
                 </span>
+
+                {/* Questionnaire boxes: entry (automatic) + final (manual toggle) */}
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  {/* Entry questionnaire — reported automatically at login */}
+                  <span
+                    className={`rounded-lg px-2 py-1 text-[11px] font-bold ${
+                      s.preQuestionnaireDone
+                        ? "bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-200"
+                        : "bg-slate-200 text-slate-600 dark:bg-white/5 dark:text-slate-300"
+                    }`}
+                  >
+                    שאלון כניסה: {s.preQuestionnaireDone ? "✓ הושלם" : "✗ לא"}
+                  </span>
+
+                  {/* Final questionnaire — clickable, marked manually by the admin */}
+                  <button
+                    onClick={() => togglePostQuestionnaire(s)}
+                    disabled={busyId === s.sessionId}
+                    title="לחיצה מסמנת/מבטלת השלמת השאלון המסכם"
+                    className={`rounded-lg px-2 py-1 text-[11px] font-bold transition-all disabled:opacity-60 ${
+                      s.postQuestionnaireDone
+                        ? "bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-500/20 dark:text-green-200"
+                        : "bg-slate-200 text-slate-600 hover:bg-slate-300 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10"
+                    }`}
+                  >
+                    שאלון מסכם: {s.postQuestionnaireDone ? "✓ הושלם" : "✗ סמן כהושלם"}
+                  </button>
+                </div>
               </div>
 
               {/* Group assignment (permanent). Only shown while Pending; once a
@@ -283,6 +340,12 @@ function AdminStudents() {
                       group="Experimental Group"
                       label="ניסוי"
                       activeClass="bg-purple-600 text-white"
+                    />
+                    <ActionButton
+                      student={s}
+                      group="Sympathetic Experiment Group"
+                      label="ניסוי סימפטי"
+                      activeClass="bg-pink-600 text-white"
                     />
                     <ActionButton
                       student={s}
