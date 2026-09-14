@@ -32,6 +32,28 @@ function layerLabel(layer) {
   return map[layer] || layer || "";
 }
 
+// Hebrew label for a research group value
+function groupLabel(group) {
+  const map = {
+    "Experimental Group": "ניסוי",
+    "Sympathetic Experiment Group": "ניסוי סימפטי",
+    "Control Group": "ביקורת",
+    Pending: "ממתין לאישור",
+  };
+  return map[group] || group || "";
+}
+
+// Clean, analysis-friendly code for a research group (for comparing the groups)
+function groupCode(group) {
+  const map = {
+    "Experimental Group": "experiment",
+    "Sympathetic Experiment Group": "sympathetic_experiment",
+    "Control Group": "control",
+    Pending: "pending",
+  };
+  return map[group] || "";
+}
+
 // Build a full, readable HTML report section for one student
 function studentReportHtml(s, messages) {
   const gates =
@@ -55,7 +77,7 @@ function studentReportHtml(s, messages) {
   return `
     <section class="student">
       <h2>${esc(s.studentName?.trim() ? s.studentName : "משתתף " + (s.studentNumber || "—"))}</h2>
-      <p class="meta">ת״ז: ${esc(s.studentNumber || "—")} | מין: ${esc(genderLabel)} | קבוצה: ${esc(s.group)} | סטטוס: ${esc(
+      <p class="meta">ת״ז: ${esc(s.studentNumber || "—")} | מין: ${esc(genderLabel)} | קבוצה: ${esc(groupLabel(s.group))} (${esc(groupCode(s.group))}) | סטטוס: ${esc(
     s.status
   )}</p>
 
@@ -151,7 +173,8 @@ function buildStudentWorkbook(s, messages) {
     ["שם", s.studentName || ""],
     ["ת״ז / קוד", s.studentNumber || ""],
     ["מין", s.gender === "male" ? "זכר" : s.gender === "female" ? "נקבה" : ""],
-    ["קבוצה", s.group || ""],
+    ["קבוצה", groupLabel(s.group)],
+    ["קוד קבוצה", groupCode(s.group)],
     ["סטטוס", s.status === "completed" ? "סיים" : "פעיל"],
     ["שכבה נוכחית", s.currentLayer || ""],
     ["התקדמות (%)", s.progress ?? ""],
