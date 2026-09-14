@@ -31,6 +31,11 @@ async function generateSocraticResponse({
   // The participant's gender ("male" / "female"), chosen at login. Used so the
   // bot addresses the participant in the matching Hebrew grammatical form.
   gender,
+  // Conversation style: "socratic" (default — the original experimental bot) or
+  // "sympathetic" (same experiment, but warmer: acknowledges the answer and
+  // weaves the next question in naturally). Only the interaction STYLE changes;
+  // the scenario, stages, and analytical guidance stay identical.
+  style = "socratic",
 }) {
   try {
     // Create an authenticated OpenAI client
@@ -45,12 +50,22 @@ async function generateSocraticResponse({
         ? "המשתתף הוא גבר — פנה אליו תמיד בלשון זכר (למשל: 'תאר', 'אתה מבין', 'לדעתך')."
         : "אינך יודע את מין המשתתף — השתמש בניסוח ניטרלי מבחינה מגדרית ככל האפשר.";
 
+    // The interaction style. Only this part differs between the standard
+    // experimental bot and the warmer "sympathetic" experimental bot — the
+    // scenario, stages, CEST aspects, and analytical guidance are identical.
+    const styleRules =
+      style === "sympathetic"
+        ? `- סגנון שיחה תומך, חם וזורם (חשוב מאוד): אל תסתפק בזריקת שאלה. פתח כל תגובה בהתייחסות קצרה וספציפית למה שהמשתתף כתב — שקף שקראת והבנת אותו, והשתמש מדי פעם במחמאה קצרה וטבעית ("נקודה טובה", "תובנה מעניינת", "כיוון יפה") אך ללא חזרתיות או הגזמה. לאחר מכן שזור באופן טבעי וחלק שאלה סוקרטית אחת שמעמיקה את החשיבה — אל תפריד בין התגובה לשאלה בצורה מכנית. עודד את המשתתף להמשיך לחשוב לעומק בלי לגרום לו להרגיש שתשובתו הקודמת שגויה. שמור על רצף שיחה אנושי ונעים, והפחת את התחושה של חקירה או שאלון.
+- שמור על תגובה תמציתית וקריאה, כדי שהניסוי לא יתארך שלא לצורך.`
+        : `- שאל שאלה אחת בלבד בכל תגובה — קצרה, פתוחה ומעמיקה.`;
+
     // The three simultaneous airport disruptions, ordered by the sequence in
     // which they are revealed to the student during the session.
     const AIRPORT_EVENTS = [
       "מערכת מיון המזוודות האוטומטית מאטה ל-60% מהקצב בגלל תקלה במסוע.",
       "שתי עמדות בידוק ביטחוני מתוך שמונה נסגרות עקב מחסור בכוח אדם.",
       "חברת תעופה מקדימה את שער העלייה של טיסה גדולה, ומושכת בבת אחת המון נוסעים לאזור אחד בטרמינל.",
+      "עקב מזג האוויר הסוער וכמות המטוסים הרבה שנמצאת כרגע במנחת, זמן ההעברה של המטוסים לכיוון המסלול הראשי מתעכב בכ-20 דקות, ופוגע בלוח הזמנים של מטוסים אחרים הממתינים לנחות ולהמריא.",
     ];
 
     // Include ONLY the events that have already been revealed to the student,
@@ -160,8 +175,8 @@ ${isStuckInLayer
 - אסור בהחלט לשלב מילים, אותיות, מונחים או צירופים באנגלית או בכל שפה זרה אחרת בתוך משפט עברי. אם עולה מונח מקצועי, נסח אותו בעברית.
 - כל מילה חייבת להיות מילה אמיתית, שלמה ותקינה. אל תיצור מילים משובשות, צירופי אותיות חסרי משמעות או ערבוב של אותיות עברית ולטינית באותה מילה.
 - פנייה מגדרית: ${genderInstruction}
-- אל תיתן פתרונות ואל תפתור עבורו.
-- שאל שאלה אחת בלבד בכל תגובה — קצרה, פתוחה ומעמיקה.
+- אל תיתן פתרונות ואל תפתור עבורו, ואל תוביל לפתרון "נכון" מסוים — העידוד הוא שיחתי/רגשי בלבד ולא תוכן אנליטי שפותר עבורו.
+${styleRules}
 - התאם את השאלה הבאה לתשובה האחרונה; אל תשאל שאלות גנריות.
 - אל תחזור על שאלות שכבר נשאלו.
 - ניסוח מדורג לפי רמת המשתתף: בתחילת השיחה (שלב "הקשר רחב" ובאחוזי התקדמות נמוכים) נסח שאלות פשוטות, קצרות וברורות בשפה יומיומית, בלי מונחים מקצועיים כבדים, כדי שהמשתתף יבין בקלות. ככל שהוא מתקדם בשלבים ובאחוזי ההתקדמות, העלה בהדרגה את רמת המורכבות והשתמש בשפה מקצועית ומעמיקה יותר.
@@ -231,6 +246,7 @@ async function generateControlResponse({ studentMessage, chatHistory, revealedCo
       "מערכת מיון המזוודות האוטומטית מאטה ל-60% מהקצב בגלל תקלה במסוע.",
       "שתי עמדות בידוק ביטחוני מתוך שמונה נסגרות עקב מחסור בכוח אדם.",
       "חברת תעופה מקדימה את שער העלייה של טיסה גדולה, ומושכת בבת אחת המון נוסעים לאזור אחד בטרמינל.",
+      "עקב מזג האוויר הסוער וכמות המטוסים הרבה שנמצאת כרגע במנחת, זמן ההעברה של המטוסים לכיוון המסלול הראשי מתעכב בכ-20 דקות, ופוגע בלוח הזמנים של מטוסים אחרים הממתינים לנחות ולהמריא.",
     ];
     const safeRevealedCount = Math.max(1, Math.min(revealedCount, AIRPORT_EVENTS.length));
     const revealedEventsText = AIRPORT_EVENTS
