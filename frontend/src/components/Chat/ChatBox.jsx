@@ -297,7 +297,7 @@ function ChatBox() {
       {/* Display the conversation messages and AI typing indicator */}
       <ChatMessages
         messages={messages}
-        isTyping={isTyping}
+        isTyping={safeSession.group === "Control Group" ? false : isTyping}
         gender={safeSession.gender}
       />
 
