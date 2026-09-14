@@ -56,6 +56,21 @@ const userSchema = new mongoose.Schema(
       default: "",
     },
 
+    // Whether the participant confirmed filling the ENTRY questionnaire at login
+    // (self-reported via the checkbox on the login screen).
+    preQuestionnaireDone: {
+      type: Boolean,
+      default: false,
+    },
+
+    // Whether the researcher marked the FINAL questionnaire as completed. The
+    // final questionnaire is an external Google Form, so it cannot be detected
+    // automatically — the researcher marks it manually in the admin panel.
+    postQuestionnaireDone: {
+      type: Boolean,
+      default: false,
+    },
+
     // Store the user's role in the system
     role: {
   // The role must be a string
@@ -73,8 +88,8 @@ const userSchema = new mongoose.Schema(
       // The group value must be a string
       type: String,
 
-      // Allow the experimental group, control group, or an unassigned (pending) state
-      enum: ["Experimental Group", "Control Group", "Pending"],
+      // Allow the experimental, sympathetic-experiment, control, or unassigned (pending) states
+      enum: ["Experimental Group", "Sympathetic Experiment Group", "Control Group", "Pending"],
 
       // Default new users to Pending until the researcher assigns a group
       default: "Pending",
