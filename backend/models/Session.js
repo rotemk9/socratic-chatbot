@@ -33,8 +33,8 @@ const sessionSchema = new mongoose.Schema(
       // The group value must be a string
       type: String,
 
-      // Allow the experimental group, control group, or an unassigned (pending) state
-      enum: ["Experimental Group", "Control Group", "Pending"],
+      // Allow the experimental, sympathetic-experiment, control, or unassigned (pending) states
+      enum: ["Experimental Group", "Sympathetic Experiment Group", "Control Group", "Pending"],
 
       // Default new sessions to Pending until the researcher assigns a group
       default: "Pending",
