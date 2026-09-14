@@ -37,7 +37,7 @@ async function applyGroup(session, group) {
 async function startSession(req, res) {
   try {
     // Extract the user's information from the request body
-    const { name, studentId, email, gender, role } = req.body;
+    const { name, studentId, email, gender, filledQuestionnaire, role } = req.body;
 
     // Researcher test account: entering ID "1234567" with name "Admin" skips the
     // waiting room (goes straight to the experimental group) and enables the
@@ -73,6 +73,8 @@ if (role === "researcher") {
         email,
         // Store the participant's gender for the research data
         gender,
+        // Record that the participant confirmed filling the entry questionnaire
+        preQuestionnaireDone: !!filledQuestionnaire,
         // Tag the researcher test account by role so the UI can recognize it
         // (it enables the "skip questionnaire" shortcut).
         role: isTestUser ? "admin" : "student",
@@ -81,6 +83,10 @@ if (role === "researcher") {
         // everyone else waits for the researcher to assign the group (Pending).
         group: isTestUser ? "Experimental Group" : "Pending",
       });
+    } else if (filledQuestionnaire && !user.preQuestionnaireDone) {
+      // A returning participant who now confirmed filling the entry questionnaire
+      user.preQuestionnaireDone = true;
+      await user.save();
     }
 
     // A NEW run must ALWAYS start a completely clean chat. Archive any previous
@@ -197,10 +203,11 @@ async function assignGroup(req, res) {
     // Extract the session ID and the chosen group from the request body
     const { sessionId, group } = req.body;
 
-    // Only the two real research groups may be assigned (no reset to Pending)
-    if (!["Experimental Group", "Control Group"].includes(group)) {
+    // Only the three real research groups may be assigned (no reset to Pending)
+    if (!["Experimental Group", "Sympathetic Experiment Group", "Control Group"].includes(group)) {
       return res.status(400).json({
-        message: "Group must be 'Experimental Group' or 'Control Group'",
+        message:
+          "Group must be 'Experimental Group', 'Sympathetic Experiment Group', or 'Control Group'",
       });
     }
 
@@ -311,6 +318,35 @@ async function completeSession(req, res) {
   }
 }
 
+// Manually set whether a participant completed the FINAL questionnaire. The
+// final questionnaire is an external Google Form, so the researcher marks it by
+// hand in the admin panel after checking the form's responses.
+async function setPostQuestionnaire(req, res) {
+  try {
+    // Extract the session ID and the desired value from the request body
+    const { sessionId, done } = req.body;
+
+    // Find the session to resolve the participant
+    const session = await Session.findById(sessionId);
+    if (!session) {
+      return res.status(404).json({ message: "Session not found" });
+    }
+
+    // Update the flag on the participant's user record
+    await User.findByIdAndUpdate(session.studentId, {
+      postQuestionnaireDone: !!done,
+    });
+
+    // Confirm the update
+    res.json({ ok: true, postQuestionnaireDone: !!done });
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to update questionnaire status",
+      error: error.message,
+    });
+  }
+}
+
 // Format the user and session data into one consistent response object
 function formatSessionResponse(user, session) {
   return {
@@ -376,6 +412,8 @@ async function getAllStudents(req, res) {
         studentId: s.studentId.studentId,
         email: s.studentId.email,
         gender: s.studentId.gender,
+        preQuestionnaireDone: s.studentId.preQuestionnaireDone,
+        postQuestionnaireDone: s.studentId.postQuestionnaireDone,
         group: s.group,
         status: s.status,
         createdAt: s.createdAt,
@@ -482,4 +520,5 @@ module.exports = {
   deleteStudent,
   deleteAllStudents,
   completeSession,
+  setPostQuestionnaire,
 };
